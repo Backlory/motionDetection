@@ -1,5 +1,5 @@
 from tasker._base_tasker import _Tasker_base
-
+from model.Homo import HomographyNet
 class Train_Homo_and_save(_Tasker_base):
     def __init__(self, args):
         '''
@@ -15,3 +15,4 @@ class Train_Homo_and_save(_Tasker_base):
     
     def run(self):
         print('run!')
+        self.model = HomographyNet(False)
