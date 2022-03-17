@@ -62,7 +62,7 @@ class _Tasker_base():
         else:
             activate_dir = f'{self.save_path}/tensorboard.txt'
         with open(activate_dir, 'w') as f:
-            f.write(f'conda activate torchenv1100\n')
+            f.write(f'activate torchenv1100\n')
             f.write(f'tensorboard --logdir=tsLogger\n')
             f.close()
         if sys.platform == "linux":

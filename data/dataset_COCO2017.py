@@ -27,42 +27,41 @@ class Dataset_COCO2017(_Dataset_Generater_Base):
         return data_list_tri, data_list_val, data_list_test
 
     def __getitem__(self, index):
-        try:
-            if self.args['ifDatasetAllTheSameTrick']: 
-                index = 0
-        except:
-            pass
+        if self.args['ifDatasetAllTheSameTrick']: 
+            index = 0
+            np.random.seed(5)
         #
         path_img, _ = self.data_list[index]
-        img_t0 = cv2.imread(path_img, cv2.IMREAD_COLOR)
+        img_t0 = cv2.imread(path_img, cv2.IMREAD_GRAYSCALE)[:,:,np.newaxis]
         #
         if self.args['ifDataAugment']:
             img_t0 = self.transform_pre(img_t0)
         #
-        target = (np.random.rand(4, 2) * 0.5 - 0.25)
         ps = 128
+        target = np.random.randn(4, 2)
+        #target = (np.random.rand(4, 2) * 0.5 - 0.25) * 4
         img_shape = (int(ps*1.5), int(ps*1.5))
         img_t0 = cv2.resize(img_t0, img_shape)
         fp = np.array([(0.25,0.25),(1.25,0.25),(1.25,1.25),(0.25,1.25)],
                         dtype=np.float32) * ps
-        pfp = np.float32(fp + target * ps)
+        pfp = np.float32(fp + target * ps/4/4 )
         H_warp = cv2.getPerspectiveTransform(fp, pfp)
         img_t1 = cv2.warpPerspective(img_t0, H_warp, img_shape)
         #
-        patch_t0 = img_t0[int(0.25*ps):int(1.25*ps), int(0.25*ps):int(1.25*ps), :]
-        patch_t1 = img_t1[int(0.25*ps):int(1.25*ps), int(0.25*ps):int(1.25*ps), :]
+        patch_t0 = img_t0[int(0.25*ps):int(1.25*ps), int(0.25*ps):int(1.25*ps)][:,:,np.newaxis]
+        patch_t1 = img_t1[int(0.25*ps):int(1.25*ps), int(0.25*ps):int(1.25*ps)][:,:,np.newaxis]
         '''
         已知target，求直接能够在patch上(128*128)使用的仿射变换矩阵H_warp_patch：
         ps = 128
         fp = np.array([(0.25,0.25),(1.25,0.25),(1.25,1.25),(0.25,1.25)],
                         dtype=np.float32) * ps
-        pfp = np.float32(fp + target * ps)
+        pfp = np.float32(fp + target /16 * ps)
         H_warp = cv2.getPerspectiveTransform(fp, pfp)
         H2 = np.array([1,0,-ps*0.25, 0,1, -ps*0.25,0,0,1]).reshape(3,3)
         H_warp_patch = np.matmul(np.matmul(H2, H_warp), np.linalg.inv(H2)) 
-        '''
-        '''
         patch_t0_w = cv2.warpPerspective(patch_t0, H_warp_patch, (ps, ps))
+        '''
+        '''
         cv2.imshow("img_t0", img_t0)
         cv2.imshow("img_t1", img_t1)
         cv2.imshow("patch_t0", patch_t0)
@@ -70,14 +69,14 @@ class Dataset_COCO2017(_Dataset_Generater_Base):
         cv2.imshow("patch_t0_w", patch_t0_w)
         cv2.waitKey(0)'''
         #
-        img_t0 = torch.tensor(patch_t0/255).float().permute(2,0,1)    #hwc->chw
-        img_t1 = torch.tensor(patch_t1/255).float().permute(2,0,1)
+        patch_t0 = torch.tensor(patch_t0/255).float().permute(2,0,1)    #hwc->chw
+        patch_t1 = torch.tensor(patch_t1/255).float().permute(2,0,1)
         target = torch.tensor(target).float()
         
         if self.args['ifDataAugment']:
-            img_t0, img_t1 = self.transform_post(img_t0, img_t1)
+            patch_t0, patch_t1 = self.transform_post(patch_t0, patch_t1)
         #
-        return img_t0, img_t1, target
+        return img_t0[np.newaxis, :,:], patch_t0, patch_t1, target
 
     def transform_pre(self, img_t0):
         random.seed(int( time.time()*1000000))
@@ -97,21 +96,23 @@ class Dataset_COCO2017(_Dataset_Generater_Base):
             img_t0 = cv2.warpAffine(img_t0, M, (128, 128))
         return img_t0
 
-    def transform_post(self, img_t0, img_t1):
+    def transform_post(self, patch_t0, patch_t1):
         if random.random() >0.5:    #高斯噪声
-            temp = torch.rand(1)*90 + 10
-            img_t0 = img_t0 + torch.randn(img_t0.size())/temp
-            img_t1 = img_t1 + torch.randn(img_t0.size())/temp
-            img_t0 = torch.clip(img_t0, 0, 1)
-            img_t1 = torch.clip(img_t1, 0, 1)
+            temp = torch.rand(1)*50 + 50
+            patch_t0 = patch_t0 + torch.randn(patch_t0.size())/temp
+            patch_t1 = patch_t1 + torch.randn(patch_t0.size())/temp
+            patch_t0 = torch.clip(patch_t0, 0, 1)
+            patch_t1 = torch.clip(patch_t1, 0, 1)
         if random.random() > 0.3:   #光照噪声
-            temp1 = torch.randn(1)*0.05
-            temp2 = torch.randn(1)*0.05
-            img_t0 = img_t0 + temp1
-            img_t1 = img_t1 + temp2
-            img_t0 = torch.clip(img_t0, 0, 1)
-            img_t1 = torch.clip(img_t1, 0, 1)
-        return img_t0, img_t1
+            temp1 = torch.randn(1)*0.01
+            temp2 = torch.randn(1)*0.01
+            patch_t0 = patch_t0 + temp1
+            patch_t1 = patch_t1 + temp2
+            patch_t0 = torch.clip(patch_t0, 0, 1)
+            patch_t1 = torch.clip(patch_t1, 0, 1)
+        patch_t0 = patch_t0 * 2 - 1
+        patch_t1 = patch_t1 * 2 - 1
+        return patch_t0, patch_t1
 
 if __name__=="__main__":
     from mypath import Path

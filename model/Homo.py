@@ -7,30 +7,45 @@ except:
     import os, sys
     sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
     from utils.timers import tic, toc
+class IdentityBlock(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+    def forward(self, x):
+        return x
 class Block(nn.Module):
     def __init__(self, inchannels, midchannels, outchannels, batch_norm=False, pool=True):
         super(Block, self).__init__()
-        layers = []
-        layers.append(nn.Conv2d(inchannels, midchannels, kernel_size=3, padding=1))
-        layers.append(nn.ReLU())
+        self.conv1 = nn.Conv2d(inchannels, midchannels, kernel_size=3, padding=1)
+        self.relu1 = nn.ReLU(inplace=True)
         if batch_norm:
-            layers.append(nn.BatchNorm2d(outchannels))
-        layers.append(nn.Conv2d(midchannels, outchannels, kernel_size=3, padding=1))
-        layers.append(nn.ReLU())
+            self.bn1 = nn.BatchNorm2d(midchannels)
+        else:
+            self.bn1 = IdentityBlock()
+        self.conv2 = nn.Conv2d(midchannels, outchannels, kernel_size=3, padding=1)
+        self.relu2 = nn.ReLU(inplace=True)
         if batch_norm:
-            layers.append(nn.BatchNorm2d(outchannels))
+            self.bn2 =nn.BatchNorm2d(outchannels)
+        else:
+            self.bn2 = IdentityBlock()
         if pool:
-            layers.append(nn.MaxPool2d(2, 2))
-        self.layers = nn.Sequential(*layers)
-
+            self.pool = nn.MaxPool2d(2, 2)
+        else:
+            self.pool = IdentityBlock()
     def forward(self, x):
-        return self.layers(x)
+        out = self.conv1(x)
+        out = self.relu1(out)
+        out = self.bn1(out)
+        out = self.conv2(out)
+        out = self.relu2(out)
+        out = self.bn2(out)
+        out = self.pool(out)
+        return out
 
 class HomographyNet(nn.Module):
-    def __init__(self, batch_norm=False):
+    def __init__(self, batch_norm=True):
         super(HomographyNet, self).__init__()
         self.cnn = nn.Sequential(
-            Block(6, 64, 64, batch_norm),
+            Block(2, 64, 64, batch_norm),
             Block(64, 64, 64, batch_norm),
             Block(64, 128, 128, batch_norm),
             Block(128, 128, 128, batch_norm, pool=False),
@@ -38,11 +53,11 @@ class HomographyNet(nn.Module):
         self.fc = nn.Sequential(
             nn.Flatten(),
             nn.Dropout(p=0.5),
-            #nn.Linear(128 * 16 * 16, 1024),
-            #nn.ReLU(),
-            #nn.Dropout(p=0.5),
-            #nn.Linear(1024, 4 * 2),
-            nn.Linear(128*16*16, 4 * 2),
+            nn.Linear(128 * 16 * 16, 160),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(160, 4 * 2),
+            #nn.Linear(128*16*16, 4 * 2),
         )
 
     def forward(self, a, b):
@@ -56,12 +71,12 @@ class HomographyNet(nn.Module):
 if __name__ == "__main__":
     device = 'cuda'  # cpu, cuda
     def get_sample():
-        img_t0 = torch.rand(1, 3, 128, 128).to(device)
-        img_t1 = torch.rand(1, 3, 128, 128).to(device)
+        img_t0 = torch.rand(8, 1, 128, 128).to(device)
+        img_t1 = torch.rand(8, 1, 128, 128).to(device)
         return img_t0, img_t1
 
     model = HomographyNet().to(device)
-    summary(model, [(3, 128, 128),(3, 128, 128)])
+    summary(model, [(1, 128, 128),(1, 128, 128)])
     model.train()
     import torch.optim as opt
     optimizer = opt.Adam(model.parameters(), lr=0.1)
