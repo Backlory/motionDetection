@@ -48,15 +48,17 @@ class HomographyNet(nn.Module):
             Block(2, 64, 64, batch_norm),
             Block(64, 64, 64, batch_norm),
             Block(64, 128, 128, batch_norm),
-            Block(128, 128, 128, batch_norm, pool=False),
+            Block(128, 128, 128, batch_norm),
+            Block(128, 128, 128, batch_norm),
+            Block(128, 128, 128, batch_norm, pool=False)
         )
         self.fc = nn.Sequential(
             nn.Flatten(),
             nn.Dropout(p=0.5),
-            nn.Linear(128 * 16 * 16, 160),
+            nn.Linear(128 * 4 * 4, 128),
             nn.ReLU(),
-            nn.Dropout(p=0.5),
-            nn.Linear(160, 4 * 2),
+            nn.Dropout(p=0.3),
+            nn.Linear(128, 4 * 2),
             #nn.Linear(128*16*16, 4 * 2),
         )
 

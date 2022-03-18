@@ -97,6 +97,7 @@ class Train_Homo_and_save(_Tasker_base):
             self.model.train()
             loss_list = []
             print('Loading data...')
+            t1 = tic()
             for i, data_item in enumerate(self.TrainLoader):
                 self.logger.add_scalar('learning rate realtime', 
                                         self.optimizer.param_groups[0]['lr'], 
@@ -121,9 +122,10 @@ class Train_Homo_and_save(_Tasker_base):
                 loss_list.append(loss.item())
                 print(f'\rEpoch[{epoch+1}/{self.epoches}][{i}/{len(TrainLoader)}]\t loss: {loss:.4f}', end="")
                 
-                if (i+1) % (max(len(TrainLoader) // 10, 1)) == 0 or self.pulse(60): 
+                if (i+1) % (max(len(TrainLoader) // 10, 1)) == 0: 
                     temp_l = np.mean(loss_list)
                     print(f'\rEpoch[{epoch+1}/{self.epoches}][{i}/{len(TrainLoader)}]\t avg_loss: {temp_l:.4f}')
+                    toc(t1,"1/10 of all", (i+1) // (max(len(TrainLoader) // 10, 1)), mute=False)
                     
                 tensor2np = lambda x:((x/2+0.5).detach().cpu().numpy()*255).transpose(1,2,0).astype(np.uint8)
                 #每个epoch保存10次图片
@@ -141,7 +143,11 @@ class Train_Homo_and_save(_Tasker_base):
                                             img, 
                                             epoch*len(TrainLoader)+i, 
                                             dataformats='HWC')
-
+            
+            self.logger.add_scalar('train_loss_avg', 
+                                    np.mean(loss_list), 
+                                    epoch+1)
+            toc(t1,"one epoch", mute=False)
             # 保存
             self.model.eval()
             self.save_model(epoch)
@@ -200,6 +206,10 @@ class Train_Homo_and_save(_Tasker_base):
                                             img, 
                                             epoch*len(ValidLoader)+i, 
                                             dataformats='HWC')
+        self.logger.add_scalar('valid_loss_avg', 
+                                np.mean(loss_list), 
+                                epoch+1)
+            
 
     def preprocess(self, img_t0, img_t1, target):  #
         '''
@@ -218,6 +228,7 @@ class Train_Homo_and_save(_Tasker_base):
 
     def save_model(self, epoch):
         self.model.eval()
+        self.model.cpu()
         state = {   'epoch': epoch,
                     'state_dict': self.model.state_dict(),
                     'optimizer_dict': self.optimizer.state_dict() }
@@ -225,12 +236,13 @@ class Train_Homo_and_save(_Tasker_base):
         torch.save(state, temp)
         print(f"\nmodel saved at {temp}.")
         #
-        img_t0 = torch.rand(1, 1, 128, 128).to(self.device)
-        img_t1 = torch.rand(1, 1, 128, 128).to(self.device)
+        img_t0 = torch.rand(1, 1, 128, 128)
+        img_t1 = torch.rand(1, 1, 128, 128)
         traced_model = torch.jit.trace(self.model, (img_t0, img_t1))
         traced_model.save(F'{self.save_path}/libtorch_jit_model.pkl')
         script_model = torch.jit.script(self.model)
         script_model.save(F'{self.save_path}/libtorch_script_model.pkl')
+        self.model.to(self.device)
         
 
     def model2onnx(self):
