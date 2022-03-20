@@ -1,8 +1,8 @@
 def get_conf(taskerName = "tasker"):
     arg = {}
-    arg['ifContinueTask'] = False
-    arg['continueTaskExpPath'] = ""
-    arg['continueWeightsFile'] = ""
+    arg['ifContinueTask'] = True
+    arg['continueTaskExpPath'] = "exps/20220320_13_56_01_Train_Homo_and_save"
+    arg['continueWeightsFile'] = "model_Train_Homo_and_save_bs32_78.pkl"
     #
     arg['ifUseGPU'] = True
     #
@@ -15,6 +15,6 @@ def get_conf(taskerName = "tasker"):
         arg['batchSize'] = 32
         arg['numWorkers'] = 2
         arg['lr_init'] = 0.005
-        arg['iterations'] = 4000000
+        arg['iterations'] = 8000000
 
     return arg

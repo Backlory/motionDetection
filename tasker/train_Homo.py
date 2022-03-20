@@ -70,6 +70,7 @@ class Train_Homo_and_save(_Tasker_base):
         # 加载模型
         if self.args['ifContinueTask']:
             self.continueTask()
+            epoch = self.epoch_resume
 
         #半精度优化
         scaler = GradScaler(enabled=True)
@@ -171,6 +172,7 @@ class Train_Homo_and_save(_Tasker_base):
         
         if self.args['ifContinueTask']:
             self.continueTask()
+            epoch = self.epoch_resume
 
         criterion = torch.nn.MSELoss()
         
@@ -277,7 +279,7 @@ class Train_Homo_and_save(_Tasker_base):
     def continueTask(self):
         print('loading state dicts of model and optimizer ...')
         temp_states = torch.load(self.args['continueTaskExpPath'] + '/' + self.args['continueWeightsFile'])
-        epoch = temp_states['epoch'] + 1       #本轮epoch=上轮+1
+        self.epoch_resume = temp_states['epoch'] + 1       #本轮epoch=上轮+1
         self.model.load_state_dict(temp_states['state_dict'])
         self.optimizer.load_state_dict(temp_states['optimizer_dict'])
         self.args['ifContinueTask'] = False
