@@ -113,6 +113,7 @@ class HomographyNet(nn.Module):
         return delta
         
 
+
 if __name__ == "__main__":
     device = 'cuda'  # cpu, cuda
     def get_sample():

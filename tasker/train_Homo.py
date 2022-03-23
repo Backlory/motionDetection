@@ -4,7 +4,6 @@ import numpy as np
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from torch.cuda.amp import GradScaler
 
 from data.mypath import Path
 from data.dataset_COCO2017 import Dataset_COCO2017
@@ -14,6 +13,7 @@ from utils.timers import tic, toc
 
 from tasker._base_tasker import _Tasker_base
 from model.Homo import HomographyNet
+
 class Train_Homo_and_save(_Tasker_base):
     def __init__(self, args):
         super().__init__(args)
@@ -38,7 +38,7 @@ class Train_Homo_and_save(_Tasker_base):
                                 self.batchSize,
                                 num_workers=self.args['numWorkers'],
                                 drop_last=True, 
-                                pin_memory=True)
+                                pin_memory=False)
         Dataset_valid = Dataset_generater.generate('valid')
         self.ValidLoader = DataLoader(Dataset_valid, 
                                 self.batchSize,
@@ -73,7 +73,13 @@ class Train_Homo_and_save(_Tasker_base):
             epoch = self.epoch_resume
 
         #半精度优化
-        scaler = GradScaler(enabled=True)
+        try:
+            assert(self.device.type == "cuda")
+            from torch.cuda.amp import GradScaler, autocast
+        except:
+            print("no cuda device available, so amp will be forbidden.")
+            from utils.cuda import GradScaler, autocast
+        self.scaler = GradScaler(enabled=True)
 
         best_loss = 9999
         while epoch < self.epoches:
@@ -107,13 +113,15 @@ class Train_Homo_and_save(_Tasker_base):
                 patch_t0, patch_t1, target = self.preprocess(patch_t0, patch_t1, target)
                 #
                 self.optimizer.zero_grad()
-                output = self.model(patch_t0, patch_t1) #flow_L1, flow_L2, flow_L3, flow_L4
                 
-                loss = self.criterion(output, target)
-                scaler.scale(loss).backward()
-                scaler.unscale_(self.optimizer)
-                scaler.step(self.optimizer)
-                scaler.update()
+                with autocast():
+                    output = self.model(patch_t0, patch_t1) #flow_L1, flow_L2, flow_L3, flow_L4
+                    loss = self.criterion(output, target)
+                
+                self.scaler.scale(loss).backward()
+                #scaler.unscale_(self.optimizer)
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
                 
                 #loss.backward()
                 #self.optimizer.step()
@@ -135,7 +143,7 @@ class Train_Homo_and_save(_Tasker_base):
                     p1 = tensor2np(patch_t1[0])
                     i0 = (img_t0[0].detach().cpu().numpy()*255).transpose(1,2,0).astype(np.uint8)
                     delta = output[0].detach().cpu().numpy()
-                    p0_w = self.output2patch(p0, delta)
+                    p0_w = output2patch(p0, delta)
                     watcher = [p0, p1, p0_w, cv2.subtract(p0_w, p1)]
                     #watcher = [img_t0[0], img_t1[0]]
                     img = img_square(watcher, 2, 2)
@@ -199,7 +207,7 @@ class Train_Homo_and_save(_Tasker_base):
                     p1 = tensor2np(patch_t1[0])
                     i0 = (img_t0[0].detach().cpu().numpy()*255).transpose(1,2,0).astype(np.uint8)
                     delta = output[0].detach().cpu().numpy()
-                    p0_w = self.output2patch(p0, delta)
+                    p0_w = output2patch(p0, delta)
                     watcher = [p0, p1, p0_w, cv2.subtract(p0_w, p1)]
                     #watcher = [img_t0[0], img_t1[0]]
                     img = img_square(watcher, 2, 2)
@@ -208,6 +216,11 @@ class Train_Homo_and_save(_Tasker_base):
                                             img, 
                                             epoch*len(ValidLoader)+i, 
                                             dataformats='HWC')
+        
+        temp_l = np.mean(loss_list)
+        print("\n========")
+        print(f'Epoch[{epoch+1}/{self.epoches}][{i}/{len(ValidLoader)}]\t avg_loss: {temp_l:.4f}')
+                
         self.logger.add_scalar('valid_loss_avg', 
                                 np.mean(loss_list), 
                                 epoch+1)
@@ -284,23 +297,6 @@ class Train_Homo_and_save(_Tasker_base):
         self.optimizer.load_state_dict(temp_states['optimizer_dict'])
         self.args['ifContinueTask'] = False
 
-    def output2patch(self, patch_t0, delta):
-        
-        ps = 128
-        fp = np.array([(0.25,0.25),(1.25,0.25),(1.25,1.25),(0.25,1.25)],
-                        dtype=np.float32) * ps
-        pfp = np.float32(fp + delta /16 * ps)
-        H_warp = cv2.getPerspectiveTransform(fp, pfp)
-        #
-        H2 = np.array([1,0,-ps*0.25, 0,1, -ps*0.25,0,0,1]).reshape(3,3)
-        H_warp_patch = np.matmul(np.matmul(H2, H_warp), np.linalg.inv(H2)) 
-        patch_t0_w = cv2.warpPerspective(patch_t0, H_warp_patch, (ps, ps))
-        #
-        #img_t0_w = cv2.warpPerspective(img_t0, H_warp, (ps*2, ps*2))
-        #patch_t0_w = img_t0_w[int(0.25*ps):int(1.25*ps), int(0.25*ps):int(1.25*ps)][:,:,np.newaxis]
-        
-        return patch_t0_w
-
     def load_pretrain(self):
         import os
         state_dict = self.model.state_dict()
@@ -312,3 +308,20 @@ class Train_Homo_and_save(_Tasker_base):
             state_dict_update[ori_sd[i]] = state_dict_pretrained[pre_sd[i]]
         self.model.load_state_dict(state_dict_update)
         return
+
+def output2patch(patch_t0, delta):
+    
+    ps = 128
+    fp = np.array([(0.25,0.25),(1.25,0.25),(1.25,1.25),(0.25,1.25)],
+                    dtype=np.float32) * ps
+    pfp = np.float32(fp + delta /16 * ps)
+    H_warp = cv2.getPerspectiveTransform(fp, pfp)
+    #
+    H2 = np.array([1,0,-ps*0.25, 0,1, -ps*0.25,0,0,1]).reshape(3,3)
+    H_warp_patch = np.matmul(np.matmul(H2, H_warp), np.linalg.inv(H2)) 
+    patch_t0_w = cv2.warpPerspective(patch_t0, H_warp_patch, (ps, ps))
+    #
+    #img_t0_w = cv2.warpPerspective(img_t0, H_warp, (ps*2, ps*2))
+    #patch_t0_w = img_t0_w[int(0.25*ps):int(1.25*ps), int(0.25*ps):int(1.25*ps)][:,:,np.newaxis]
+
+    return patch_t0_w
