@@ -14,7 +14,7 @@ if __name__ == "__main__":
         Tasker = Train_Homo_and_save(args)
         #Tasker.load_pretrain()
         Tasker.run()
-    if False:
+    if True:
         args = get_conf('Test_Homo_in_validset')
         Tasker = Train_Homo_and_save(args)
         Tasker.valid(0)

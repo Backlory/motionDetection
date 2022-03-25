@@ -31,14 +31,72 @@ class Inference_Homo():
             path = self.args['continueTaskExpPath'] + '/' + self.args['continueWeightsFile_script']
             self.model = torch.jit.load(path)
         
-    
+    def _get_homo_128(self, patch_t0, patch_t1):
+        assert(patch_t0.shape == (128, 128, 1))
+        patch_t0 = torch.Tensor(patch_t0/255).float().permute(2,0,1)[None]    #hwc->chw
+        patch_t1 = torch.Tensor(patch_t1/255).float().permute(2,0,1)[None]
+        patch_t0 = patch_t0 * 2 - 1
+        patch_t1 = patch_t1 * 2 - 1
+        patch_t0 = patch_t0.to(self.device)
+        patch_t1 = patch_t1.to(self.device)
+        output = self.model(patch_t0, patch_t1)
+        delta = output[0].detach().cpu().numpy()
+        
+        fp = np.array([ (32, 32),
+                        (160, 32),
+                        (160, 160),
+                        (32, 160)],
+                        dtype=np.float32)
+        pfp = np.float32(fp + delta * 8)
+        H_warp = cv2.getPerspectiveTransform(fp, pfp)
+        H2 = np.array([ 1, 0, -32,
+                        0, 1, -32,
+                        0, 0,   1 ]).reshape(3,3) #平移矩阵
+        H_warp_patch = np.matmul(np.matmul(H2, H_warp), np.linalg.inv(H2)) 
+        return H_warp_patch
+
     def __call__(self, img_t0, img_t1):
+        '''
+        t0向t1
+        '''
         assert(img_t0.shape == img_t1.shape)
         assert(img_t0.shape[2] == 3)
         h, w, _ = img_t0.shape
-        assert(w > h)
+        assert(w >= h)
+        assert(h == 512)
+        #
+        img_t0_gray = cv2.cvtColor(img_t0, cv2.COLOR_BGR2GRAY)
+        img_t1_gray = cv2.cvtColor(img_t1, cv2.COLOR_BGR2GRAY)
+        #
+        ps = 128 * 4
+        p_tl = (256-int(ps/2), int(w/2)-int(ps/2))
+        p_rb = (p_tl[0]+ps, p_tl[1]+ps)
+        #
+        patch_t0 = img_t0_gray[p_tl[0]:p_rb[0], p_tl[1]:p_rb[1]]
+        patch_t1 = img_t1_gray[p_tl[0]:p_rb[0], p_tl[1]:p_rb[1]]
+        patch_t0 = cv2.resize(patch_t0, (128,128))[:, :, np.newaxis]
+        patch_t1 = cv2.resize(patch_t1, (128,128))[:, :, np.newaxis]
+        #
+        H_warp_patch = self._get_homo_128(patch_t0, patch_t1)
+        #
+        patch_t0_w = cv2.warpPerspective(patch_t0, H_warp_patch, (128,128))
+        h,w,_ = patch_t0.shape
+        patch_t0 = patch_t0[int(h*0.05):int(h*0.95), int(w*0.05):int(w*0.95),:]
+        patch_t1 = patch_t1[int(h*0.05):int(h*0.95), int(w*0.05):int(w*0.95),:]
+        patch_t0_w = patch_t0_w[int(h*0.05):int(h*0.95), int(w*0.05):int(w*0.95)]
+        cv2.imwrite("0.png", img_t0_gray)
+        cv2.imwrite("1.png", patch_t0)
+        cv2.imwrite("2.png", patch_t1)
+        cv2.imwrite("3.png", img_square([patch_t0, patch_t1, patch_t0_w, cv2.subtract(patch_t1, patch_t0_w), cv2.subtract(patch_t1, patch_t0)], 1,5))
+        print(np.sum(cv2.subtract(patch_t1, patch_t0_w)), np.sum(cv2.subtract(patch_t1, patch_t0)))
+        #img_t0_warp = cv2.warpPerspective(img_t0, H_warp, (w, h))
+        #img_t0_warp = cv2.warpPerspective(img_t0_gray, H_warp, (192,192))
+        #patch_t0_w = img_t0_w[int(0.25*ps):int(1.25*ps), int(0.25*ps):int(1.25*ps)][:,:,np.newaxis]
         
-        return img_t1
+        img_t0_warp = img_t0
+        #
+        
+        return img_t0_warp
 
     def run_test(self):
         path = r"E:\dataset\UAC_IN_CITY\video3.mp4"
@@ -63,10 +121,15 @@ class Inference_Homo():
                 print("all frame have been read.")
                 break
             # ==============================================↓↓↓↓
-            # 
-            img_t1_warped = self(img_t0, img_t1)
+            #
+            img_t1_warped = self(img_t1, img_t0)
             #
             # ==============================================↑↑↑↑
+            h,w,_ = img_t0.shape
+            img_t0 = img_t0[int(h*0.05):int(h*0.95), int(w*0.05):int(h*0.95),:]
+            img_t1 = img_t1[int(h*0.05):int(h*0.95), int(w*0.05):int(h*0.95),:]
+            img_t1_warped = img_t1_warped[int(h*0.05):int(h*0.95), int(w*0.05):int(h*0.95),:]
+            #
             diff1 = cv2.subtract(img_t0, img_t1)
             diff2 = cv2.subtract(img_t0, img_t1_warped)
             temp1 = np.round(np.mean(diff1), 4)

@@ -7,7 +7,7 @@ def get_conf(taskerName = "tasker"):
     arg['datasetLenTrick'] = -1
     #
     if "Train_Homo_and_save" in taskerName:
-        arg['newExperimentFolder'] = False
+        arg['record'] = True
         arg['ifContinueTask'] = False
         arg['continueTaskExpPath'] = "exps/20220320_13_56_01_Train_Homo_and_save"
         arg['continueWeightsFile'] = "model_Train_Homo_and_save_bs32_78.pkl"
@@ -18,7 +18,7 @@ def get_conf(taskerName = "tasker"):
         arg['iterations'] = 8000000
 
     if "Test_Homo_in_validset" in taskerName:
-        arg['newExperimentFolder'] = False
+        arg['record'] = False
         arg['ifContinueTask'] = True
         arg['continueTaskExpPath'] = "weights"
         arg['continueWeightsFile'] = "model_Train_Homo_and_save_bs32_96.pkl"

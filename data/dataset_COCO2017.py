@@ -76,6 +76,9 @@ class Dataset_COCO2017(_Dataset_Generater_Base):
         if self.args['ifDataAugment']:
             patch_t0, patch_t1 = self.transform_post(patch_t0, patch_t1)
         #
+        patch_t0 = patch_t0 * 2 - 1
+        patch_t1 = patch_t1 * 2 - 1
+        
         return img_t0[np.newaxis, :,:], patch_t0, patch_t1, target
 
     def transform_pre(self, img_t0):
@@ -110,8 +113,6 @@ class Dataset_COCO2017(_Dataset_Generater_Base):
             patch_t1 = patch_t1 + temp2
             patch_t0 = torch.clip(patch_t0, 0, 1)
             patch_t1 = torch.clip(patch_t1, 0, 1)
-        patch_t0 = patch_t0 * 2 - 1
-        patch_t1 = patch_t1 * 2 - 1
         return patch_t0, patch_t1
 
 if __name__=="__main__":

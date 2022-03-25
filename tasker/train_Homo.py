@@ -208,9 +208,9 @@ class Train_Homo_and_save(_Tasker_base):
                     i0 = (img_t0[0].detach().cpu().numpy()*255).transpose(1,2,0).astype(np.uint8)
                     delta = output[0].detach().cpu().numpy()
                     p0_w = output2patch(p0, delta)
-                    watcher = [p0, p1, p0_w, cv2.subtract(p0_w, p1)]
+                    watcher = [p0, p1, p0_w, cv2.subtract(p0_w, p1), cv2.subtract(p0, p1)]
                     #watcher = [img_t0[0], img_t1[0]]
-                    img = img_square(watcher, 2, 2)
+                    img = img_square(watcher, 2, 3)
                     cv2.imwrite(self.save_path+f'/val_cycle_{i}.png', img)
                     self.logger.add_image(f'val_img_sample',
                                             img, 

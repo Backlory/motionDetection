@@ -26,7 +26,9 @@ class _Tasker_base():
             os.mkdir(self.experiment_dir)
         
         # 本次实验文件夹
-        if self.args['ifContinueTask']:
+        if not self.args['record']:
+            self.save_path = "temp"
+        elif self.args['ifContinueTask']:
             self.save_path = self.args['continueTaskExpPath']
         else:
             print(colorstr('Initializing folder for this experiment...', 'yellow'))
