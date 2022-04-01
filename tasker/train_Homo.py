@@ -144,7 +144,7 @@ class Train_Homo_and_save(_Tasker_base):
                     i0 = (img_t0[0].detach().cpu().numpy()*255).transpose(1,2,0).astype(np.uint8)
                     delta = output[0].detach().cpu().numpy()
                     p0_w = output2patch(p0, delta)
-                    watcher = [p0, p1, p0_w, cv2.subtract(p0_w, p1)]
+                    watcher = [p0, p1, p0_w, cv2.absdiff(p0_w, p1)]
                     #watcher = [img_t0[0], img_t1[0]]
                     img = img_square(watcher, 2, 2)
                     cv2.imwrite(self.save_path+f'/tri_cycle_{i}.png', img)
@@ -208,7 +208,7 @@ class Train_Homo_and_save(_Tasker_base):
                     i0 = (img_t0[0].detach().cpu().numpy()*255).transpose(1,2,0).astype(np.uint8)
                     delta = output[0].detach().cpu().numpy()
                     p0_w = output2patch(p0, delta)
-                    watcher = [p0, p1, p0_w, cv2.subtract(p0_w, p1), cv2.subtract(p0, p1)]
+                    watcher = [p0, p1, p0_w, cv2.absdiff(p0_w, p1), cv2.absdiff(p0, p1)]
                     #watcher = [img_t0[0], img_t1[0]]
                     img = img_square(watcher, 2, 3)
                     cv2.imwrite(self.save_path+f'/val_cycle_{i}.png', img)
@@ -243,7 +243,7 @@ class Train_Homo_and_save(_Tasker_base):
 
     def save_model(self, epoch):
         self.model.eval()
-        self.model.cpu()
+        self.model = self.model.cpu()
         state = {   'epoch': epoch,
                     'state_dict': self.model.state_dict(),
                     'optimizer_dict': self.optimizer.state_dict() }
@@ -254,9 +254,9 @@ class Train_Homo_and_save(_Tasker_base):
         img_t0 = torch.rand(1, 1, 128, 128)
         img_t1 = torch.rand(1, 1, 128, 128)
         traced_model = torch.jit.trace(self.model, (img_t0, img_t1))
-        traced_model.save(F'{self.save_path}/libtorch_jit_model.pkl')
+        traced_model.save(F'{self.save_path}/libtorch_jit_model_Homo_cpu.pkl')
         script_model = torch.jit.script(self.model)
-        script_model.save(F'{self.save_path}/libtorch_script_model.pkl')
+        script_model.save(F'{self.save_path}/libtorch_script_model_Homo_cpu.pkl')
         self.model.to(self.device)
         
 

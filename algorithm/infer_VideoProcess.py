@@ -7,21 +7,22 @@ from utils.mics import colorstr
 from utils.timers import tic, toc
 
 class Inference_VideoProcess():
-    def __init__(self, cap=None, fps_target = None, args={}) -> None:
+    def __init__(self, cap=None, fps_target = None, skip_frame = 0, args={}) -> None:
         self.args = args
         
         self.cap = None
         self.img_t0 = None
         self.img_t1 = None 
         self.flagTranspose = False
-        self.skip_frame = 0
+        self.skip_frame = skip_frame
         self.fps_now = None
         
         if cap is not None: 
             self.set_cap(cap)
-            if fps_target is not None:
-                self.set_fps_target(fps_target)
-
+            if skip_frame == 0:
+                if fps_target is not None:
+                    self.set_fps_target(fps_target)
+            
     def __del__(self):
         if self.cap is not None:
             self.cap.release()
@@ -42,7 +43,7 @@ class Inference_VideoProcess():
 
     def set_fps_target(self, fps_target):
         fps = self.cap.get(cv2.CAP_PROP_FPS)
-        self.skip_frame = max(int(fps / fps_target - 1), 0)
+        self.skip_frame = max(round(fps / fps_target - 1), 0)
         self.fps_now = fps / (1 + self.skip_frame)
     
     def __call__(self):
@@ -53,7 +54,7 @@ class Inference_VideoProcess():
         for _ in range(self.skip_frame+1):
             _, img_t1 = self.cap.read()
         if img_t1 is None:
-            print("test complete.")
+            #print("no frame left.")
             return None, None
         
         # preProcess
@@ -102,7 +103,7 @@ class Inference_VideoProcess():
             print(f'== frame {idx} ==')
             cv2.imshow("test_origin_t0", img_t0)
             cv2.imshow("test_origin_t1", img_t1)
-            cv2.imshow("test_origin_diff", cv2.subtract(img_t0, img_t1))
+            cv2.imshow("test_origin_diff", cv2.absdiff(img_t0, img_t1))
             
             if cv2.waitKey(int(1000/fps)) == 27:
                 break

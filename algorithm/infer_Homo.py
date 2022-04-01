@@ -1,4 +1,6 @@
+import sys
 import cv2
+from importlib_metadata import files
 import numpy as np
 import torch
 
@@ -6,13 +8,12 @@ from utils.img_display import save_pic, img_square
 from utils.mics import colorstr
 from utils.timers import tic, toc
 
-from model.Homo import HomographyNet
+from model.Homo import Homo_cnn, Homo_fc
 
 from algorithm.infer_VideoProcess import Inference_VideoProcess
 class Inference_Homo():
     def __init__(self, args) -> None:
         self.args = args
-        
         # 设备
         print(colorstr('Initializing device...', 'yellow'))
         if self.args['ifUseGPU']:
@@ -20,45 +21,312 @@ class Inference_Homo():
         else:
             self.device = torch.device('cpu')
 
+        # 模型
         print(colorstr('Initializing model...', 'yellow'))
         if self.args['modelType'] == 'weights':
-            self.model = HomographyNet()
+            self.model_cnn = Homo_cnn()
+            self.model_fc = Homo_fc()
             path = self.args['continueTaskExpPath'] + '/' + self.args['continueWeightsFile_weights']
-            temp_states = torch.load(path)
-            self.model.load_state_dict(temp_states['state_dict'])
-            self.model.to(self.device).eval()
+            temp_states = torch.load(path)['state_dict']
+            from utils.pytorchmodel import updata_adaptive
+            for k,v in temp_states.items():
+                k_ = k
+                temp_states[k_] = v
+            self.model_cnn = updata_adaptive(self.model_cnn, temp_states)
+            self.model_fc = updata_adaptive(self.model_fc, temp_states)
+            self.model_cnn.to(self.device).eval()
+            self.model_fc.to(self.device).eval()
         elif self.args['modelType'] == 'script':
             path = self.args['continueTaskExpPath'] + '/' + self.args['continueWeightsFile_script']
             self.model = torch.jit.load(path)
+        # 卡尔曼滤波器参数。假设短时间内动力无变化。https://zhuanlan.zhihu.com/p/137235479
+        self.delta_last = None
+        self.delta_last_v = None
+        self.delta_last_a = None
+
+    def run_test(self, fps_target=30, stride = 4, alpha=0):
+        print("==============")
+        print(f"run testing wiht fps_target = {fps_target}, stride = {stride}")
+        #path = r"E:\dataset\UAC_IN_CITY\video_all_1.mp4"
+        path = r"E:\dataset\dataset-fg-det\Janus_UAV_Dataset\train_video\video_all.mp4"
+        cap = cv2.VideoCapture(path)
+        #
+        tempVideoProcesser = Inference_VideoProcess(cap=cap,fps_target=fps_target)
+        fps = tempVideoProcesser.fps_now
+        '''
+        cv2.namedWindow("test_origin",cv2.WINDOW_FREERATIO)
+        cv2.namedWindow("test_diff_origin",cv2.WINDOW_FREERATIO)
+        cv2.namedWindow("test_diff_warp",cv2.WINDOW_FREERATIO)
+        cv2.resizeWindow("test_origin", 512,512)
+        cv2.resizeWindow("test_diff_origin", 512,512)
+        cv2.resizeWindow("test_diff_warp", 512,512)
+        '''
+        self.ss1,self.ss2 = 0, 0
+        self.effect_all = []
+        idx = 0
+        frameUseless = 0
+        while(True):
+            idx += 1
+
+            img_t0, img_t1 = tempVideoProcesser()
+            if img_t0 is None:
+                print("all frame have been read.")
+                break
+            cv.
+            # ==============================================↓↓↓↓
+            #
+            #img_t1_warped = self._test_one_patch(img_t1, img_t0)
+            #img_t1_warped = self._test_patches(img_t1, img_t0)
+            img_t0, img_t1_warped, diffOrigin, diffWarp, if_usefull = self(img_t1, img_t0, stride=stride, alpha=alpha)
+            
+            
+            # ==============================================↑↑↑↑
+            if not if_usefull:
+                frameUseless += 1
+                diffOrigin = 0
+                diffWarp = diffOrigin
+            self.ss1 += diffOrigin
+            self.ss2 += diffWarp
+            if if_usefull:
+                self.effect_all.append(diffWarp/diffOrigin)
+            print(f'\r== frame {idx} ==> diff_origin = {diffOrigin}, diff_warp = {diffWarp}', ', origin=',self.ss1,', warped=', self.ss2, end="")
+            #cv2.imshow("test_origin", img_t0)
+            #cv2.imshow("test_diff_origin",  cv2.absdiff(img_t0, img_t1))
+            #cv2.imshow("test_diff_warp",  cv2.absdiff(img_t0, img_t1_warped))
+            #cv2.waitKey(1)
+            #if cv2.waitKey(int(1000/fps)) == 27: break
+        print("\nframeUseless = ", frameUseless)
         
-    def _get_homo_128(self, patch_t0, patch_t1):
-        assert(patch_t0.shape == (128, 128, 1))
-        patch_t0 = torch.Tensor(patch_t0/255).float().permute(2,0,1)[None]    #hwc->chw
-        patch_t1 = torch.Tensor(patch_t1/255).float().permute(2,0,1)[None]
+        #保存到文件
+        savedStdout = sys.stdout
+        with open("log.txt", "a+") as f:
+            sys.stdout = f
+            effect_all = np.average(self.effect_all)
+            print(f"{alpha}|{fps_target}|{stride}|{idx}|{frameUseless}|{self.ss1}|{self.ss2}|{effect_all}\n")
+        sys.stdout = savedStdout
+            
+        cv2.destroyAllWindows()
+        cap.release()
+
+    def _get_fea(self, patch_t0, patch_t1):
+        assert(len(patch_t0.shape) == 2)
+        patch_t0 = torch.Tensor(patch_t0/255).float()[None,None]
+        patch_t1 = torch.Tensor(patch_t1/255).float()[None,None]
         patch_t0 = patch_t0 * 2 - 1
         patch_t1 = patch_t1 * 2 - 1
         patch_t0 = patch_t0.to(self.device)
         patch_t1 = patch_t1.to(self.device)
-        output = self.model(patch_t0, patch_t1)
-        delta = output[0].detach().cpu().numpy()
-        
-        fp = np.array([ (32, 32),
-                        (160, 32),
-                        (160, 160),
-                        (32, 160)],
-                        dtype=np.float32)
-        pfp = np.float32(fp + delta * 8)
-        H_warp = cv2.getPerspectiveTransform(fp, pfp)
-        H2 = np.array([ 1, 0, -32,
-                        0, 1, -32,
-                        0, 0,   1 ]).reshape(3,3) #平移矩阵
-        H_warp_patch = np.matmul(np.matmul(H2, H_warp), np.linalg.inv(H2)) 
-        return H_warp_patch
+        features = self.model_cnn(patch_t0, patch_t1)
+        return features
 
-    def __call__(self, img_t0, img_t1):
+    def _get_output(self, features):
+        output = self.model_fc(features)
+        delta = output[0].detach().cpu().numpy()
+        delta = np.float32(delta * 8)
+        return delta
+
+    def __call__(self, img_t0, img_base, stride=4, alpha=0):
+        '''
+        alpha是运动预测，将t0向t1扭曲
+        '''
+        assert(img_t0.shape == img_base.shape)
+        assert(img_t0.shape[2] == 3)
+        h, w, _ = img_t0.shape
+        assert(w >= h)
+        assert(h == 512)
+        #
+        img_t0_gray = cv2.cvtColor(img_t0, cv2.COLOR_BGR2GRAY)
+        img_base_gray = cv2.cvtColor(img_base, cv2.COLOR_BGR2GRAY)
+        
+        img_t0_gray_resized = cv2.resize(img_t0_gray, (128 * stride, 128 * stride))
+        img_base_gray_resized = cv2.resize(img_base_gray, (128 * stride, 128 * stride))
+        
+        # 网格采样。先卷再切，再输出。破坏邻域关系，不行，故先切再卷
+        delta = []
+        for i in range(stride):
+            for j in range(stride):
+                features1 = self._get_fea(img_t0_gray_resized[i::stride, j::stride], img_base_gray_resized[i::stride, j::stride])
+                delta1 = self._get_output(features1)
+                delta.append(delta1)
+        delta_all = np.array(delta)
+        temp1 = [[0,0],[128,0],[128,128],[0,128]]
+        if stride>1:
+            delta = np.sort(delta_all, axis=0)[stride-1:(stride**2-stride+1),:,:]
+            delta = np.average(delta, axis=0)
+        else:
+            delta = delta_all
+        #可视化
+        if False:
+            import matplotlib.pyplot as plt
+            fig = plt.figure()
+            ax = plt.gca()
+            ax.invert_yaxis()
+            for i in range(len(delta_all)):
+                temp1 = [[0,0],[128,0],[128,128],[0,128]]
+                temp2 = delta_all[i].tolist()
+                for i in range(len(temp1)):
+                    x,y = temp1[i]
+                    u,v = temp2[i]
+                    plt.quiver(x,y,u,v)
+            plt.figure()
+            for i in range(4):
+                x,y = temp1[i]
+                u,v = delta[i]
+                plt.quiver(x,y,u,v)
+            ax.invert_yaxis()
+            plt.show()
+
+        # 计算当前帧的角点偏移量
+        fp = np.array([[0,0],[w,0],[w,h],[0,h]], dtype=np.float32)
+        delta[:,0] = delta[:,0] / 128 * w
+        delta[:,1] = delta[:,1] / 128 * h
+        pfp = (fp + delta)
+        
+        #历史预测及其更新
+        
+        delta_pred = None  
+        if self.delta_last is not None:
+            temp_v = delta - self.delta_last
+            if self.delta_last_v is not None:
+                temp_a = temp_v - self.delta_last_v
+                if self.delta_last_a is not None:
+                    delta_pred = self.delta_last + self.delta_last_v + self.delta_last_a / 2 #x=x0+vt+at^2/2
+                self.delta_last_a = temp_a
+            self.delta_last_v = temp_v
+        self.delta_last = delta
+        if delta_pred is not None:
+            pfp = pfp * (1-alpha) + (fp + delta_pred) * alpha
+            
+
+        # 执行单应性变换
+        H_warp = self.getPerspectiveTransform(fp, pfp)
+        img_t0_warp = cv2.warpPerspective(img_t0, H_warp, (w, h))
+        h,w,_ = img_t0.shape
+        img_t0 = img_t0[int(h*0.05):int(h*0.95), int(w*0.05):int(w*0.95),:]
+        img_base = img_base[int(h*0.05):int(h*0.95), int(w*0.05):int(w*0.95),:]
+        img_t0_warp = img_t0_warp[int(h*0.05):int(h*0.95), int(w*0.05):int(w*0.95),:]
+        
+        # 有效性检查
+        diffOrigin = cv2.absdiff(img_t0, img_base)       #扭前
+        diffWarp = cv2.absdiff(img_t0_warp, img_base)   #扭后
+        diffOrigin = np.round(np.sum(diffOrigin), 4)
+        diffWarp = np.round(np.sum(diffWarp), 4)
+        if_usefull = (diffOrigin > diffWarp)
+        if not if_usefull:
+            img_t0_warp = img_t0
+        return img_base, img_t0_warp, diffOrigin, diffWarp, if_usefull
+
+    def getPerspectiveTransform(self, fp, pfp):
+        H = cv2.getPerspectiveTransform(fp, pfp)
+        return H
+
+    def _test_patches(self, img_t0, img_t1):
         '''
         t0向t1
         '''
+        def _test_patches_get_point_motion_vector(self, features, p_tl=[0,0], size = 128) -> list: 
+            #输出模型在256*256下的标准输出
+            _, c, h, w = features.shape
+            assert(c == 128)
+            k = h/16    #应该为16，但现在却为h，故缩小了k倍
+            size_input = 256 * k
+            
+            p_tl_fea = int(p_tl[0] / size_input * h), int(p_tl[1] / size_input * w)
+            fea_patch = features[:, :, p_tl_fea[0]:p_tl_fea[0]+8, p_tl_fea[1]:p_tl_fea[1]+8]
+            
+            output = self.model_fc(fea_patch)
+            delta = output[0].detach().cpu().numpy()
+            delta = np.float32(delta * 8)
+            
+            size_origin = int(size / k)
+            fp = np.array([ p_tl,
+                            (p_tl[0]+size_origin, p_tl[1]),
+                            (p_tl[0]+size_origin, p_tl[1]+size_origin),
+                            (p_tl[0],      p_tl[1]+size_origin)], np.float32)
+            return fp, delta * k
+        assert(img_t0.shape == img_t1.shape)
+        assert(img_t0.shape[2] == 3)
+        h, w, _ = img_t0.shape
+        assert(w >= h)
+        assert(h == 512)
+        #
+        img_t0_gray = cv2.cvtColor(img_t0, cv2.COLOR_BGR2GRAY)
+        img_t1_gray = cv2.cvtColor(img_t1, cv2.COLOR_BGR2GRAY)
+        img_t0_gray = cv2.resize(img_t0_gray, (256, 256))
+        img_t1_gray = cv2.resize(img_t1_gray, (256, 256))
+        
+        # 特征提取
+        features = self._get_fea(img_t0_gray, img_t1_gray)   #1, 128, 16, 16
+        
+        _, _, h, w = features.shape
+        point_pair_ori = []
+        point_pair_mov = []
+        
+        for p_tl in [(0,0), (0, 128), (128, 128), (128, 0),(64,64)]:
+            fp, delta = _test_patches_get_point_motion_vector(self, features, p_tl, size = 128)
+            try:
+                point_pair_ori = np.concatenate([point_pair_ori, fp], axis = 0)
+                point_pair_mov = np.concatenate([point_pair_mov, delta], axis = 0)
+            except:
+                point_pair_ori = fp
+                point_pair_mov = delta
+        if True:
+            features = torch.nn.AdaptiveAvgPool2d(int(h/2))(features)   #128*128用的
+            fp, delta = _test_patches_get_point_motion_vector(self, features, (0,0), size = 128)
+            point_pair_ori = np.concatenate([point_pair_ori, fp], axis = 0)
+            point_pair_mov = np.concatenate([point_pair_mov, delta], axis = 0)
+        #
+        import matplotlib.pyplot as plt
+        ax = plt.gca()
+        ax.invert_yaxis()
+        for i in range(len(point_pair_ori)):
+            x,y = point_pair_ori[i]
+            u,v = point_pair_mov[i]
+            plt.quiver(x,y,u,v)
+        plt.show()
+        #
+        img_t0_warp = img_t0
+        return img_t0_warp
+
+    def _test_one_patch(self, img_t1, img_t0):
+        def _test_get_homo_128(self, patch_t0, patch_t1):
+            assert(patch_t0.shape == (128, 128, 1))
+            patch_t0 = torch.Tensor(patch_t0/255).float().permute(2,0,1)[None]    #hwc->chw
+            patch_t1 = torch.Tensor(patch_t1/255).float().permute(2,0,1)[None]
+            patch_t0 = patch_t0 * 2 - 1
+            patch_t1 = patch_t1 * 2 - 1
+            patch_t0 = patch_t0.to(self.device)
+            patch_t1 = patch_t1.to(self.device)
+            features = self.model_cnn(patch_t0, patch_t1)
+            output = self.model_fc(features)
+            delta = output[0].detach().cpu().numpy()
+            
+            fp = np.array([ (32, 32),
+                            (160, 32),
+                            (160, 160),
+                            (32, 160)],
+                            dtype=np.float32)
+            pfp = np.float32(fp + delta * 8)
+
+            if False:
+                import matplotlib.pyplot as plt
+                ax = plt.gca()
+                ax.invert_yaxis()
+                for i in range(4):
+                    x,y = fp[i]
+                    u,v = pfp[i] - fp[i]
+                    plt.quiver(x,y,u,v)
+                plt.show()
+
+            H_warp = cv2.getPerspectiveTransform(fp, pfp)
+            H_warp_from_0 = cv2.getPerspectiveTransform(fp-32, pfp-32)
+            H2 = np.array([ 1, 0, -32,
+                            0, 1, -32,
+                            0, 0,   1 ]).reshape(3,3) #平移矩阵
+            H_warp_patch = np.matmul(np.matmul(H2, H_warp), np.linalg.inv(H2)) 
+            return H_warp_patch
+
+
         assert(img_t0.shape == img_t1.shape)
         assert(img_t0.shape[2] == 3)
         h, w, _ = img_t0.shape
@@ -76,9 +344,9 @@ class Inference_Homo():
         patch_t1 = img_t1_gray[p_tl[0]:p_rb[0], p_tl[1]:p_rb[1]]
         patch_t0 = cv2.resize(patch_t0, (128,128))[:, :, np.newaxis]
         patch_t1 = cv2.resize(patch_t1, (128,128))[:, :, np.newaxis]
-        #
-        H_warp_patch = self._get_homo_128(patch_t0, patch_t1)
-        #
+        
+        # 单个patch测试
+        H_warp_patch = _test_get_homo_128(self, patch_t0, patch_t1)
         patch_t0_w = cv2.warpPerspective(patch_t0, H_warp_patch, (128,128))
         h,w,_ = patch_t0.shape
         patch_t0 = patch_t0[int(h*0.05):int(h*0.95), int(w*0.05):int(w*0.95),:]
@@ -87,60 +355,15 @@ class Inference_Homo():
         cv2.imwrite("0.png", img_t0_gray)
         cv2.imwrite("1.png", patch_t0)
         cv2.imwrite("2.png", patch_t1)
-        cv2.imwrite("3.png", img_square([patch_t0, patch_t1, patch_t0_w, cv2.subtract(patch_t1, patch_t0_w), cv2.subtract(patch_t1, patch_t0)], 1,5))
-        print(np.sum(cv2.subtract(patch_t1, patch_t0_w)), np.sum(cv2.subtract(patch_t1, patch_t0)))
-        #img_t0_warp = cv2.warpPerspective(img_t0, H_warp, (w, h))
-        #img_t0_warp = cv2.warpPerspective(img_t0_gray, H_warp, (192,192))
-        #patch_t0_w = img_t0_w[int(0.25*ps):int(1.25*ps), int(0.25*ps):int(1.25*ps)][:,:,np.newaxis]
-        
-        img_t0_warp = img_t0
-        #
-        
-        return img_t0_warp
+        temp = img_square([patch_t0, patch_t1, patch_t0_w, cv2.absdiff(patch_t1, patch_t0_w), cv2.absdiff(patch_t1, patch_t0)], 1,5)
+        cv2.imwrite("3.png", temp)
+        cv2.imshow("123",temp)
+        cv2.waitKey(0)
+        print(np.sum(cv2.absdiff(patch_t1, patch_t0_w)), np.sum(cv2.absdiff(patch_t1, patch_t0)))
+        self.ss1 += np.sum(cv2.absdiff(patch_t1, patch_t0_w))
+        self.ss2 += np.sum(cv2.absdiff(patch_t1, patch_t0))
+        print(self.ss1, self.ss2)
+        return img_t0
 
-    def run_test(self):
-        path = r"E:\dataset\UAC_IN_CITY\video3.mp4"
-        cap = cv2.VideoCapture(path)
-        #
-        tempVideoProcesser = Inference_VideoProcess(cap=cap,fps_target=10)
-        fps = tempVideoProcesser.fps_now
-        
-        cv2.namedWindow("test_origin",cv2.WINDOW_FREERATIO)
-        cv2.namedWindow("test_diff_origin",cv2.WINDOW_FREERATIO)
-        cv2.namedWindow("test_diff_warp",cv2.WINDOW_FREERATIO)
-        cv2.resizeWindow("test_origin", 512,512)
-        cv2.resizeWindow("test_diff_origin", 512,512)
-        cv2.resizeWindow("test_diff_warp", 512,512)
-        
-        idx = 0
-        while(True):
-            idx += 1
 
-            img_t0, img_t1 = tempVideoProcesser()
-            if img_t0 is None:
-                print("all frame have been read.")
-                break
-            # ==============================================↓↓↓↓
-            #
-            img_t1_warped = self(img_t1, img_t0)
-            #
-            # ==============================================↑↑↑↑
-            h,w,_ = img_t0.shape
-            img_t0 = img_t0[int(h*0.05):int(h*0.95), int(w*0.05):int(h*0.95),:]
-            img_t1 = img_t1[int(h*0.05):int(h*0.95), int(w*0.05):int(h*0.95),:]
-            img_t1_warped = img_t1_warped[int(h*0.05):int(h*0.95), int(w*0.05):int(h*0.95),:]
-            #
-            diff1 = cv2.subtract(img_t0, img_t1)
-            diff2 = cv2.subtract(img_t0, img_t1_warped)
-            temp1 = np.round(np.mean(diff1), 4)
-            temp2 = np.round(np.mean(diff2), 4)
-            effect = str(1-temp2/temp1) if temp2<temp1 else "-"+str(1-temp1/temp2)
-            print(f'== frame {idx} ==> diff_origin = {temp1}, diff_warp = {temp2}, Effect={effect}%')
-            cv2.imshow("test_origin", img_t0)
-            cv2.imshow("test_diff_origin", diff1)
-            cv2.imshow("test_diff_warp", diff2)
 
-            if cv2.waitKey(int(1000/fps)) == 27:
-                break
-        cv2.destroyAllWindows()
-        cap.release()

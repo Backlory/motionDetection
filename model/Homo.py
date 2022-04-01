@@ -112,7 +112,24 @@ class HomographyNet(nn.Module):
         delta = x.view(-1, 4, 2)
         return delta
         
+class Homo_cnn(HomographyNet):
+    def __init__(self, batch_norm=True):
+        super().__init__(batch_norm)
+        self.fc = IdentityBlock();
+        
+    def forward(self, a, b):
+        x = torch.cat((a, b), dim=1)  # combine two images in channel dimension
+        fea = self.cnn(x)
+        return fea
 
+class Homo_fc(HomographyNet):
+    def __init__(self, batch_norm=True):
+        super().__init__(batch_norm)
+        self.cnn = IdentityBlock();
+    def forward(self, fea):
+        x = self.fc(fea)
+        delta = x.view(-1, 4, 2)
+        return delta
 
 if __name__ == "__main__":
     device = 'cuda'  # cpu, cuda
