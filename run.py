@@ -30,14 +30,17 @@ if __name__ == "__main__":
             f.writelines("\n")
         args = get_conf('infer_Homo')
         Infer = Inference_Homo(args)
-        for alpha in [0,0.05,0.1,0.3]:
-            for stride in [1,2,3,4]:
+        Infer.time_test()
+        for alpha in [0]:
+            for stride in [4]:
                 Infer.run_test(1, stride, alpha)
                 Infer.run_test(3, stride, alpha)
                 Infer.run_test(6, stride, alpha)
                 Infer.run_test(10, stride, alpha)
                 Infer.run_test(15, stride, alpha)
                 Infer.run_test(30, stride, alpha)
+        '''
+        '''
         exit(0)
 
     if True:

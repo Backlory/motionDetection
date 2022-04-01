@@ -72,7 +72,6 @@ class Inference_Homo():
             if img_t0 is None:
                 print("all frame have been read.")
                 break
-            cv.
             # ==============================================↓↓↓↓
             #
             #img_t1_warped = self._test_one_patch(img_t1, img_t0)
@@ -108,6 +107,17 @@ class Inference_Homo():
         cv2.destroyAllWindows()
         cap.release()
 
+    def _get_feas_batch(self, patch_t0s, patch_t1s):
+        assert(len(patch_t0s.shape) == 4)
+        patch_t0 = torch.Tensor(patch_t0s/255).float()
+        patch_t1 = torch.Tensor(patch_t1s/255).float()
+        patch_t0 = patch_t0 * 2 - 1
+        patch_t1 = patch_t1 * 2 - 1
+        patch_t0 = patch_t0.to(self.device)
+        patch_t1 = patch_t1.to(self.device)
+        features = self.model_cnn(patch_t0, patch_t1)
+        return features
+
     def _get_fea(self, patch_t0, patch_t1):
         assert(len(patch_t0.shape) == 2)
         patch_t0 = torch.Tensor(patch_t0/255).float()[None,None]
@@ -121,7 +131,7 @@ class Inference_Homo():
 
     def _get_output(self, features):
         output = self.model_fc(features)
-        delta = output[0].detach().cpu().numpy()
+        delta = output.detach().cpu().numpy()
         delta = np.float32(delta * 8)
         return delta
 
@@ -142,12 +152,26 @@ class Inference_Homo():
         img_base_gray_resized = cv2.resize(img_base_gray, (128 * stride, 128 * stride))
         
         # 网格采样。先卷再切，再输出。破坏邻域关系，不行，故先切再卷
-        delta = []
+        
+        # 并行法
+        patch_t0s = []
+        patch_t1s = []
         for i in range(stride):
             for j in range(stride):
-                features1 = self._get_fea(img_t0_gray_resized[i::stride, j::stride], img_base_gray_resized[i::stride, j::stride])
-                delta1 = self._get_output(features1)
-                delta.append(delta1)
+                patch_t0s.append(img_t0_gray_resized[i::stride, j::stride])
+                patch_t1s.append(img_base_gray_resized[i::stride, j::stride])
+        patch_t0s = np.array(patch_t0s)[:,np.newaxis,:,:]
+        patch_t1s = np.array(patch_t1s)[:,np.newaxis,:,:]
+        features1 = self._get_feas_batch(patch_t0s, patch_t1s)
+        delta = self._get_output(features1)
+        #串行法
+        #delta = []
+        #for i in range(stride):
+        #    for j in range(stride):
+        #        features1 = self._get_fea(img_t0_gray_resized[i::stride, j::stride], img_base_gray_resized[i::stride, j::stride])
+        #        delta1 = self._get_output(features1)[0]
+        #        delta.append(delta1)
+        
         delta_all = np.array(delta)
         temp1 = [[0,0],[128,0],[128,128],[0,128]]
         if stride>1:
@@ -155,6 +179,7 @@ class Inference_Homo():
             delta = np.average(delta, axis=0)
         else:
             delta = delta_all
+
         #可视化
         if False:
             import matplotlib.pyplot as plt
@@ -183,7 +208,7 @@ class Inference_Homo():
         pfp = (fp + delta)
         
         #历史预测及其更新
-        
+        '''
         delta_pred = None  
         if self.delta_last is not None:
             temp_v = delta - self.delta_last
@@ -196,7 +221,7 @@ class Inference_Homo():
         self.delta_last = delta
         if delta_pred is not None:
             pfp = pfp * (1-alpha) + (fp + delta_pred) * alpha
-            
+        '''
 
         # 执行单应性变换
         H_warp = self.getPerspectiveTransform(fp, pfp)
@@ -366,4 +391,59 @@ class Inference_Homo():
         return img_t0
 
 
+    def time_test(self):
+        #
+        stride = 4
+        
+        #
+        path = r"E:\dataset\dataset-fg-det\Janus_UAV_Dataset\train_video\video_all.mp4"
+        cap = cv2.VideoCapture(path)
+        #
+        tempVideoProcesser = Inference_VideoProcess(cap=cap,fps_target=30)
+        fps = tempVideoProcesser.fps_now
+        img_base, img_t0 = tempVideoProcesser()
+        
+        assert(img_t0.shape == img_base.shape)
+        assert(img_t0.shape[2] == 3)
+        h, w, _ = img_t0.shape
+        assert(w >= h)
+        assert(h == 512)
+        #
+        img_t0_gray = cv2.cvtColor(img_t0, cv2.COLOR_BGR2GRAY)
+        img_base_gray = cv2.cvtColor(img_base, cv2.COLOR_BGR2GRAY)
+        
+        img_t0_gray_resized = cv2.resize(img_t0_gray, (128 * stride, 128 * stride))
+        img_base_gray_resized = cv2.resize(img_base_gray, (128 * stride, 128 * stride))
+        
+        delta = []
+        features1 = self._get_fea(img_t0_gray_resized[0::stride, 0::stride], img_base_gray_resized[0::stride, 0::stride])
+        delta1 = self._get_output(features1)
+        print(delta1.shape)
+        
+        t = tic()
+        for _ in range(100):
+            for i in range(stride):
+                for j in range(stride):
+                    features1 = self._get_fea(img_t0_gray_resized[i::stride, j::stride], img_base_gray_resized[i::stride, j::stride])
+                    delta1 = self._get_output(features1)[0]
+                    delta.append(delta1)
+        print(delta[0])
+        toc(t, "inference * 16", 100, False)
 
+        t = tic()
+        for _ in range(100):
+            patch_t0s = []
+            patch_t1s = []
+            for i in range(stride):
+                for j in range(stride):
+                    patch_t0s.append(img_t0_gray_resized[i::stride, j::stride])
+                    patch_t1s.append(img_base_gray_resized[i::stride, j::stride])
+            patch_t0s = np.array(patch_t0s)[:,np.newaxis,:,:]
+            patch_t1s = np.array(patch_t1s)[:,np.newaxis,:,:]
+        
+            features1 = self._get_feas_batch(patch_t0s, patch_t1s)
+            delta1 = self._get_output(features1)
+            delta.append(delta1)
+
+        print(delta[0])
+        toc(t, "inference * 16", 100, False)
