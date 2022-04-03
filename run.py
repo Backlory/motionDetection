@@ -1,11 +1,11 @@
 from tasker.train_Homo import Train_Homo_and_save
-#from tasker.train_MovingDetection import Train_MovingDetection_and_save
+from tasker.train_MovingDetection import Train_MovingDetection_and_save
 
 from algorithm.infer_VideoProcess import Inference_VideoProcess
 from algorithm.infer_Homo import Inference_Homo
 
 from utils.conf import get_conf
-
+import datetime
 
 if __name__ == "__main__":
     #
@@ -24,26 +24,28 @@ if __name__ == "__main__":
         Infer = Inference_VideoProcess()
         Infer.run_test()
         exit(0)
-    if True:
+    if False:
         with open("log.txt", "a+") as f:
+            f.write( datetime.datetime.now().strftime(r'%Y-%m-%d-%H:%M:%S'))
             f.writelines("!!!!!!!!!!!!!!!!!!!!!!!单应性变化情况!!!!!!!!!!!!!!!!!!!!\n")
-            f.writelines("\n")
         args = get_conf('infer_Homo')
         Infer = Inference_Homo(args)
-        Infer.time_test()
+        #Infer.time_test(4)
+        #Infer.time_test(3)
+        #Infer.time_test(2)
+        #Infer.time_test(1)
         for alpha in [0]:
-            for stride in [4]:
-                Infer.run_test(1, stride, alpha)
-                Infer.run_test(3, stride, alpha)
-                Infer.run_test(6, stride, alpha)
-                Infer.run_test(10, stride, alpha)
-                Infer.run_test(15, stride, alpha)
-                Infer.run_test(30, stride, alpha)
-        '''
-        '''
+            for fps in [1,3,6,10,15,30]:
+                for stride in [1,2,3,4]:
+                    Infer.run_test(fps, stride, alpha)
         exit(0)
 
     if True:
-        args = get_conf('Train_MovingDetection')
+        with open("log.txt", "a+") as f:
+            f.write( datetime.datetime.now().strftime(r'%Y-%m-%d-%H:%M:%S'))
+            f.writelines(": -> !!!!!!!!!!!!!!!!!!!!!!!运动感知!!!!!!!!!!!!!!!!!!!!\n")
+        
+        args = get_conf('Train_MovingDetection_and_save')
         Tasker = Train_MovingDetection_and_save(args)
         Tasker.run()
+    

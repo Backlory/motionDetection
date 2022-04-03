@@ -27,10 +27,10 @@ class Inference_Homo():
             self.model_cnn = Homo_cnn()
             self.model_fc = Homo_fc()
             path = self.args['continueTaskExpPath'] + '/' + self.args['continueWeightsFile_weights']
-            temp_states = torch.load(path)['state_dict']
             from utils.pytorchmodel import updata_adaptive
-            for k,v in temp_states.items():
-                k_ = k
+            temp_states = {}
+            for k,v in torch.load(path)['state_dict'].items():
+                k_ = k.replace("cnn.",'cnn')
                 temp_states[k_] = v
             self.model_cnn = updata_adaptive(self.model_cnn, temp_states)
             self.model_fc = updata_adaptive(self.model_fc, temp_states)
@@ -61,12 +61,13 @@ class Inference_Homo():
         cv2.resizeWindow("test_diff_origin", 512,512)
         cv2.resizeWindow("test_diff_warp", 512,512)
         '''
-        self.ss1,self.ss2 = 0, 0
+        self.ss1,self.ss2 = [],[]
         self.effect_all = []
         idx = 0
         frameUseless = 0
         while(True):
             idx += 1
+            #if idx>10:break
 
             img_t0, img_t1 = tempVideoProcesser()
             if img_t0 is None:
@@ -76,19 +77,21 @@ class Inference_Homo():
             #
             #img_t1_warped = self._test_one_patch(img_t1, img_t0)
             #img_t1_warped = self._test_patches(img_t1, img_t0)
-            img_t0, img_t1_warped, diffOrigin, diffWarp, if_usefull = self(img_t1, img_t0, stride=stride, alpha=alpha)
-            
+            img_t0, img_t1_warped, diffOrigin, diffWarp, if_usefull = self.__call__(img_t1, img_t0, stride=stride, alpha=alpha)
+            #temp = [img_t0, img_t1, img_t1_warped, cv2.absdiff(img_t0, img_t1_warped), cv2.absdiff(img_t0, img_t1)]
+            #cv2.imwrite(f"{round(fps)}_{stride}.png", img_square(temp, 2,3))
             
             # ==============================================↑↑↑↑
             if not if_usefull:
                 frameUseless += 1
-                diffOrigin = 0
+                diffOrigin = 1
                 diffWarp = diffOrigin
-            self.ss1 += diffOrigin
-            self.ss2 += diffWarp
+            self.ss1.append(diffOrigin)
+            self.ss2.append(diffWarp)
             if if_usefull:
-                self.effect_all.append(diffWarp/diffOrigin)
-            print(f'\r== frame {idx} ==> diff_origin = {diffOrigin}, diff_warp = {diffWarp}', ', origin=',self.ss1,', warped=', self.ss2, end="")
+                effect = 1 - diffWarp/diffOrigin
+                self.effect_all.append(effect)
+            print(f'\r== frame {idx} ==> diff_origin = {diffOrigin}, diff_warp = {diffWarp}', "rate=", effect,  end="")
             #cv2.imshow("test_origin", img_t0)
             #cv2.imshow("test_diff_origin",  cv2.absdiff(img_t0, img_t1))
             #cv2.imshow("test_diff_warp",  cv2.absdiff(img_t0, img_t1_warped))
@@ -101,7 +104,9 @@ class Inference_Homo():
         with open("log.txt", "a+") as f:
             sys.stdout = f
             effect_all = np.average(self.effect_all)
-            print(f"{alpha}|{fps_target}|{stride}|{idx}|{frameUseless}|{self.ss1}|{self.ss2}|{effect_all}\n")
+            ss1_all = np.average(self.ss1)
+            ss2_all = np.average(self.ss2)
+            print(f"{alpha}|{fps_target}|{stride}|{idx}|{frameUseless}|{1-frameUseless/idx}|{ss1_all}|{ss2_all}|{1-ss2_all/ss1_all}|{effect_all}")
         sys.stdout = savedStdout
             
         cv2.destroyAllWindows()
@@ -115,7 +120,7 @@ class Inference_Homo():
         patch_t1 = patch_t1 * 2 - 1
         patch_t0 = patch_t0.to(self.device)
         patch_t1 = patch_t1.to(self.device)
-        features = self.model_cnn(patch_t0, patch_t1)
+        features = self.model_cnn(patch_t0, patch_t1)[4]
         return features
 
     def _get_fea(self, patch_t0, patch_t1):
@@ -126,7 +131,7 @@ class Inference_Homo():
         patch_t1 = patch_t1 * 2 - 1
         patch_t0 = patch_t0.to(self.device)
         patch_t1 = patch_t1.to(self.device)
-        features = self.model_cnn(patch_t0, patch_t1)
+        features = self.model_cnn(patch_t0, patch_t1)[4]
         return features
 
     def _get_output(self, features):
@@ -227,15 +232,22 @@ class Inference_Homo():
         H_warp = self.getPerspectiveTransform(fp, pfp)
         img_t0_warp = cv2.warpPerspective(img_t0, H_warp, (w, h))
         h,w,_ = img_t0.shape
-        img_t0 = img_t0[int(h*0.05):int(h*0.95), int(w*0.05):int(w*0.95),:]
-        img_base = img_base[int(h*0.05):int(h*0.95), int(w*0.05):int(w*0.95),:]
-        img_t0_warp = img_t0_warp[int(h*0.05):int(h*0.95), int(w*0.05):int(w*0.95),:]
+        #img_t0 = img_t0[int(h*0.05):int(h*0.95), int(w*0.05):int(w*0.95),:]
+        #img_base = img_base[int(h*0.05):int(h*0.95), int(w*0.05):int(w*0.95),:]
+        #img_t0_warp = img_t0_warp[int(h*0.05):int(h*0.95), int(w*0.05):int(w*0.95),:]
         
         # 有效性检查
+        ret, mask = cv2.threshold(img_t0_warp, 1, 1, cv2.THRESH_BINARY)
+        
         diffOrigin = cv2.absdiff(img_t0, img_base)       #扭前
         diffWarp = cv2.absdiff(img_t0_warp, img_base)   #扭后
+        
+        diffOrigin = cv2.multiply(diffOrigin, mask)
+        diffWarp = cv2.multiply(diffWarp, mask)
+        
         diffOrigin = np.round(np.sum(diffOrigin), 4)
         diffWarp = np.round(np.sum(diffWarp), 4)
+        
         if_usefull = (diffOrigin > diffWarp)
         if not if_usefull:
             img_t0_warp = img_t0
@@ -322,7 +334,7 @@ class Inference_Homo():
             patch_t1 = patch_t1 * 2 - 1
             patch_t0 = patch_t0.to(self.device)
             patch_t1 = patch_t1.to(self.device)
-            features = self.model_cnn(patch_t0, patch_t1)
+            features = self.model_cnn(patch_t0, patch_t1)[4]
             output = self.model_fc(features)
             delta = output[0].detach().cpu().numpy()
             
@@ -391,10 +403,9 @@ class Inference_Homo():
         return img_t0
 
 
-    def time_test(self):
-        #
-        stride = 4
-        
+    def time_test(self, stride=4):
+        print("==============")
+        print(f"run time testing wiht stride = {stride}")
         #
         path = r"E:\dataset\dataset-fg-det\Janus_UAV_Dataset\train_video\video_all.mp4"
         cap = cv2.VideoCapture(path)
@@ -421,17 +432,18 @@ class Inference_Homo():
         print(delta1.shape)
         
         t = tic()
-        for _ in range(100):
+        for _ in range(300):
+            delta = []
             for i in range(stride):
                 for j in range(stride):
                     features1 = self._get_fea(img_t0_gray_resized[i::stride, j::stride], img_base_gray_resized[i::stride, j::stride])
                     delta1 = self._get_output(features1)[0]
                     delta.append(delta1)
-        print(delta[0])
-        toc(t, "inference * 16", 100, False)
+        print(np.array(delta).shape, delta[0])
+        toc(t, "inference * 16", 300, False)
 
         t = tic()
-        for _ in range(100):
+        for _ in range(300):
             patch_t0s = []
             patch_t1s = []
             for i in range(stride):
@@ -442,8 +454,6 @@ class Inference_Homo():
             patch_t1s = np.array(patch_t1s)[:,np.newaxis,:,:]
         
             features1 = self._get_feas_batch(patch_t0s, patch_t1s)
-            delta1 = self._get_output(features1)
-            delta.append(delta1)
-
-        print(delta[0])
-        toc(t, "inference * 16", 100, False)
+            delta = self._get_output(features1)
+        print(np.array(delta).shape, delta[0])
+        toc(t, "inference * 16", 300, False)

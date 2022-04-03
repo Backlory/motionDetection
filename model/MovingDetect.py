@@ -85,9 +85,9 @@ class Block(nn.Module):
         out = self.pool(out)
         return out
 
-class HomographyNet(nn.Module):
+class MovingDetectNet(nn.Module):
     def __init__(self, batch_norm=True):
-        super(HomographyNet, self).__init__()
+        super(MovingDetectNet, self).__init__()
         self.cnn0 = Block(2, 16, 32, batch_norm, k=[3,3])
         self.cnn1 = Block(32, 64, 128, batch_norm, k=[3,3])
         self.cnn2 = Block(128, 128, 128, batch_norm, k=[3,3])
@@ -114,28 +114,6 @@ class HomographyNet(nn.Module):
         delta = x.view(-1, 4, 2)
         return delta
         
-class Homo_cnn(HomographyNet):
-    def __init__(self, batch_norm=True):
-        super().__init__(batch_norm)
-        self.fc = IdentityBlock();
-        
-    def forward(self, a, b):
-        x = torch.cat((a, b), dim=1)  # combine two images in channel dimension
-        out1 = self.cnn0(x)
-        out2 = self.cnn1(out1)
-        out3 = self.cnn2(out2)
-        out4 = self.cnn3(out3)
-        out5 = self.cnn4(out4)
-        return out1, out2, out3, out4, out5
-
-class Homo_fc(HomographyNet):
-    def __init__(self, batch_norm=True):
-        super().__init__(batch_norm)
-        self.cnn = IdentityBlock();
-    def forward(self, fea):
-        x = self.fc(fea)
-        delta = x.view(-1, 4, 2)
-        return delta
 
 if __name__ == "__main__":
     device = 'cuda'  # cpu, cuda
@@ -144,7 +122,7 @@ if __name__ == "__main__":
         img_t1 = torch.rand(8, 1, 128, 128).to(device)
         return img_t0, img_t1
 
-    model = HomographyNet().to(device)
+    model = MovingDetectNet().to(device)
     try:
         summary(model, [(1, 128, 128),(1, 128, 128)])
     except:
@@ -176,7 +154,7 @@ if __name__ == "__main__":
         pass
         #print(idx, item,'======', list(state_dict[item].shape))
     
-    pytorch_model = HomographyNet().to(device)
+    pytorch_model = MovingDetectNet().to(device)
     pytorch_model.load_state_dict(torch.load("temp_weight.pt"))
     
     # 保存
@@ -188,7 +166,7 @@ if __name__ == "__main__":
 
     # 重新加载模型
     img_t0, img_t1 = get_sample()
-    pytorch_model = HomographyNet()
+    pytorch_model = MovingDetectNet()
     pytorch_model.load_state_dict(torch.load("temp_weight.pt"))
     traced_model = torch.jit.load('temp_model_trace.pt')
     script_model = torch.jit.load('temp_model_script.pt')

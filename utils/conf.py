@@ -35,4 +35,16 @@ def get_conf(taskerName = "tasker"):
         arg['continueWeightsFile_weights'] = "model_Train_Homo_and_save_bs32_96.pkl"
         arg['taskerName'] = "Tester_Homo"
 
+    if "Train_MovingDetection_and_save" in taskerName:
+        arg['record'] = True
+        arg['ifContinueTask'] = False
+        arg['continueTaskExpPath'] = "exps/20220320_13_56_01_Train_Homo_and_save"
+        arg['continueWeightsFile'] = "model_Train_Homo_and_save_bs32_78.pkl"
+        arg['taskerName'] = "Train_MovingDetection_and_save"
+        arg['img_size_h'] = 640
+        arg['img_size_w'] = 640
+        arg['batchSize'] = 8
+        arg['numWorkers'] = 2
+        arg['lr_init'] = 0.005
+        arg['iterations'] = 800000
     return arg
