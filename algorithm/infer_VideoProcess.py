@@ -56,6 +56,9 @@ class Inference_VideoProcess():
         if img_t1 is None:
             #print("no frame left.")
             return None, None
+        while img_t1 == self.img_t0:#不让它俩相等
+            _, img_t1 = self.cap.read()
+
         
         # preProcess
         self.img_t1 = self.preProcess(img_t1)

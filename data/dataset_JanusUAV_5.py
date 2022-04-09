@@ -70,7 +70,6 @@ class Dataset_JanusUAV(_Dataset_Generater_Base):
         #
         if self.args['ifDataAugment']:
             img_t0_t4, gt_t0_t4 = self.transform(img_t0_t4, gt_t0_t4)
-        
         #
         H_ = self.args['img_size_h']
         W_ = self.args['img_size_w']
@@ -79,6 +78,9 @@ class Dataset_JanusUAV(_Dataset_Generater_Base):
                                                         mode='bilinear',    align_corners=False)[0]
             gt_t0_t4[i] = torch.nn.functional.interpolate(input=gt_t0_t4[i][None], size=(H_, W_), 
                                                         mode='bilinear',align_corners=False)[0]
+        #
+        # img preprocess
+        img_t0_t4, gt_t0_t4 = self.preprocess(img_t0_t4, gt_t0_t4)
         #
         return img_t0_t4, gt_t0_t4
 
@@ -93,7 +95,7 @@ class Dataset_JanusUAV(_Dataset_Generater_Base):
                 img_list[i] = img_list[i][:, y1: y1 + th,x1: x1 + tw]
             for i in range(len(target_list)):
                 target_list[i] = target_list[i][:, y1: y1 + th,x1: x1 + tw]
-        if random.random() >0.8:    #恒等
+        if random.random() >0.95:    #恒等
             for i in range(len(target_list)):
                 target_list[i] = torch.zeros_like(target_list[0]).float()  #无运动
             for i in range(len(img_list)):
@@ -143,6 +145,9 @@ class Dataset_JanusUAV(_Dataset_Generater_Base):
             img_list = img_list_inv
             target_list = target_list_inv
         return img_list, target_list
+
+    def preprocess(self, img_t0_t4, gt_t0_t4):
+        return img_t0_t4, gt_t0_t4
 
 if __name__=="__main__":
     from mypath import Path

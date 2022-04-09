@@ -56,63 +56,21 @@ class ASPPBN(nn.Module):
         out = F.relu(self.bn_conv_1x1_3(self.conv_1x1_3(out))) # (shape: (batch_size, 256, h/16, w/16))
  
         return out
-class Block(nn.Module):
-    def __init__(self, inchannels, midchannels, outchannels, batch_norm=False, pool=True, k=[3,3]):
-        super(Block, self).__init__()
-        self.conv1 = nn.Conv2d(inchannels, midchannels, kernel_size=k[0], padding=1)
-        self.relu1 = nn.ReLU(inplace=True)
-        if batch_norm:
-            self.bn1 = nn.BatchNorm2d(midchannels)
-        else:
-            self.bn1 = IdentityBlock()
-        self.conv2 = nn.Conv2d(midchannels, outchannels, kernel_size=k[1], padding=1)
-        self.relu2 = nn.ReLU(inplace=True)
-        if batch_norm:
-            self.bn2 =nn.BatchNorm2d(outchannels)
-        else:
-            self.bn2 = IdentityBlock()
-        if pool:
-            self.pool = nn.MaxPool2d(2, 2)
-        else:
-            self.pool = IdentityBlock()
-    def forward(self, x):
-        out = self.conv1(x)
-        out = self.relu1(out)
-        out = self.bn1(out)
-        out = self.conv2(out)
-        out = self.relu2(out)
-        out = self.bn2(out)
-        out = self.pool(out)
-        return out
 
 class MovingDetectNet(nn.Module):
     def __init__(self, batch_norm=True):
         super(MovingDetectNet, self).__init__()
-        self.cnn0 = Block(2, 16, 32, batch_norm, k=[3,3])
-        self.cnn1 = Block(32, 64, 128, batch_norm, k=[3,3])
-        self.cnn2 = Block(128, 128, 128, batch_norm, k=[3,3])
-        self.cnn3 = Block(128, 128, 128, batch_norm, k=[3,3])
-        self.cnn4 = Block(128, 128, 128, batch_norm, k=[3,3], pool=False)
-        self.fc = nn.Sequential(
-            nn.Flatten(),
-            nn.Dropout(p=0.3),
-            nn.Linear(128 * 8 * 8, 128),
-            nn.ReLU(),
-            nn.Dropout(p=0.3),
-            nn.Linear(128, 4 * 2),
-            #nn.Linear(128*16*16, 4 * 2),
-        )
+        self.cnn0 = nn.Conv2d(3,3,3,stride=1, padding=1)
+        self.cnn1 = nn.Conv2d(6,1,3,stride=1, padding=1)
+    
+    def clear(self):
+        return
 
-    def forward(self, a, b):
-        x = torch.cat((a, b), dim=1)  # combine two images in channel dimension
-        out1 = self.cnn0(x)
-        out2 = self.cnn1(out1)
-        out3 = self.cnn2(out2)
-        out4 = self.cnn3(out3)
-        out5 = self.cnn4(out4)
-        x = self.fc(out5)
-        delta = x.view(-1, 4, 2)
-        return delta
+    def forward(self, img_t0, img_t1):
+        img_t0 = self.cnn0(img_t0)
+        out = torch.concat([img_t0, img_t1], axis=1)
+        out = self.cnn1(out)
+        return out
         
 
 if __name__ == "__main__":
@@ -152,38 +110,4 @@ if __name__ == "__main__":
     torch.save(state_dict, "temp_weight.pt")
     for idx, item in enumerate(list(state_dict.keys())):
         pass
-        #print(idx, item,'======', list(state_dict[item].shape))
-    
-    pytorch_model = MovingDetectNet().to(device)
-    pytorch_model.load_state_dict(torch.load("temp_weight.pt"))
-    
-    # 保存
-    img_t0, img_t1 = get_sample()
-    traced_model = torch.jit.trace(model, (img_t0, img_t1))
-    traced_model.save('temp_model_trace.pt')
-    script_model = torch.jit.script(model)
-    script_model.save('temp_model_script.pt')
-
-    # 重新加载模型
-    img_t0, img_t1 = get_sample()
-    pytorch_model = MovingDetectNet()
-    pytorch_model.load_state_dict(torch.load("temp_weight.pt"))
-    traced_model = torch.jit.load('temp_model_trace.pt')
-    script_model = torch.jit.load('temp_model_script.pt')
-
-    # 输出验证
-    for i in range(5):
-        img_t0, img_t1 = get_sample()
-        output1 = model(img_t0, img_t1)
-        output2 = traced_model(img_t0.clone(), img_t1.clone())
-        output3 = script_model(img_t0.clone(), img_t1.clone())
-        if isinstance(output1, tuple):
-            output1 = output1[0]
-            output2 = output2[0]
-            output3 = output3[0]
-        for idx in range(len(output1)):
-            assert((output1[idx] / output2[idx]<1.05).all())
-            assert((0.95<output1[idx] / output2[idx]).all())
-            assert((output1[idx] / output3[idx]<1.05).all())
-            assert((0.95<output1[idx] / output3[idx]).all())
-            #print("consistent check pass!")
+        print(idx, item,'======', list(state_dict[item].shape))

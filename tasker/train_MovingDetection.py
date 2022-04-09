@@ -106,22 +106,30 @@ class Train_MovingDetection_and_save(_Tasker_base):
             print('Loading data...')
             t1 = tic()
             for i, data_item in enumerate(self.TrainLoader):
+                t_start = tic()
                 self.logger.add_scalar('learning rate realtime', 
                                         self.optimizer.param_groups[0]['lr'], 
                                         epoch*len(TrainLoader)+i)
-                img_t0, patch_t0, patch_t1, target = data_item
-                patch_t0, patch_t1, target = self.preprocess(patch_t0, patch_t1, target)
+                imgs, gts = data_item
+                imgs, gts = self.preprocess(imgs, gts)
+                #toc(t2,"预处理",mute=False)
                 #
                 self.optimizer.zero_grad()
                 
                 with autocast():
-                    output = self.model(patch_t0, patch_t1) #flow_L1, flow_L2, flow_L3, flow_L4
-                    loss = self.criterion(output, target)
-                
+                    self.model.clear()
+                    loss = 0
+                    outputs = []
+                    for idx in range(len(imgs) - 1):
+                        output = self.model(imgs[idx], imgs[idx+1]) 
+                        outputs.append(output)
+                        loss = loss + self.criterion(output, gts[idx])
+                #toc(t2,"推理",mute=False)
                 self.scaler.scale(loss).backward()
                 #scaler.unscale_(self.optimizer)
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
+                #toc(t2,"更新梯度",mute=False)
                 
                 #loss.backward()
                 #self.optimizer.step()
@@ -129,30 +137,29 @@ class Train_MovingDetection_and_save(_Tasker_base):
                 #每个epoch保留10个提示
                 self.logger.add_scalar('train_loss', loss.item(), epoch*len(TrainLoader)+i)
                 loss_list.append(loss.item())
-                print(f'\rEpoch[{epoch+1}/{self.epoches}][{i}/{len(TrainLoader)}]\t loss: {loss:.4f}', end="")
-                
                 if (i+1) % (max(len(TrainLoader) // 10, 1)) == 0: 
                     temp_l = np.mean(loss_list)
-                    print(f'\rEpoch[{epoch+1}/{self.epoches}][{i}/{len(TrainLoader)}]\t avg_loss: {temp_l:.4f}')
+                    print(f'\rEpoch[{epoch+1}/{self.epoches}][{i}/{len(TrainLoader)}]-{toc(t_start)}ms\t avg_loss: {temp_l:.4f}')
                     toc(t1,"1/10 of all", (i+1) // (max(len(TrainLoader) // 10, 1)), mute=False)
-                    
-                tensor2np = lambda x:((x/2+0.5).detach().cpu().numpy()*255).transpose(1,2,0).astype(np.uint8)
+                else:
+                    print(f'\rEpoch[{epoch+1}/{self.epoches}][{i}/{len(TrainLoader)}]-{toc(t_start)}ms\t loss: {loss:.4f}', end="")
+                #toc(t2,"消息更新",mute=False)
+                
                 #每个epoch保存10次图片
                 if (i+1) % (max(len(TrainLoader) // 10, 1)) == 0: 
-                    p0 = tensor2np(patch_t0[0])
-                    p1 = tensor2np(patch_t1[0])
-                    i0 = (img_t0[0].detach().cpu().numpy()*255).transpose(1,2,0).astype(np.uint8)
-                    delta = output[0].detach().cpu().numpy()
-                    p0_w = output2patch(p0, delta)
-                    watcher = [p0, p1, p0_w, cv2.absdiff(p0_w, p1)]
-                    #watcher = [img_t0[0], img_t1[0]]
-                    img = img_square(watcher, 2, 2)
+                    tensors2np = lambda x:(x[0].detach().cpu().numpy()).transpose(1,2,0).astype(np.uint8)
+                    temp1 = [tensors2np(img*255) for img in imgs]
+                    temp2 = [tensors2np(img*255) for img in outputs] + [None]
+                    temp3 = [tensors2np(img*255) for img in gts]
+                    watcher = temp1 + temp2 + temp3
+                    img = img_square(watcher, 3, 5)
                     cv2.imwrite(self.save_path+f'/tri_cycle_{i}.png', img)
                     self.logger.add_image(f'train_img_sample',
                                             img, 
                                             epoch*len(TrainLoader)+i, 
                                             dataformats='HWC')
-            
+                #toc(t2,"保存图片",mute=False)
+                
             self.logger.add_scalar('train_loss_avg', 
                                     np.mean(loss_list), 
                                     epoch+1)
@@ -186,33 +193,37 @@ class Train_MovingDetection_and_save(_Tasker_base):
         
         with torch.no_grad():
             for i, data_item in enumerate(ValidLoader):
-                img_t0, patch_t0, patch_t1, target = data_item
-                patch_t0, patch_t1, target = self.preprocess(patch_t0, patch_t1, target)
+                imgs, gts = data_item
+                imgs, gts = self.preprocess(imgs, gts)
                 #
-                output = self.model(patch_t0, patch_t1) #flow_L1, flow_L2, flow_L3, flow_L4
-                loss = criterion(output, target)
+                self.model.clear()
+                loss = 0
+                outputs = []
+                for idx in range(len(imgs) - 1):
+                    output = self.model(imgs[idx], imgs[idx+1]) #flow_L1, flow_L2, flow_L3, flow_L4
+                    outputs.append(output)
+                    loss = loss + self.criterion(output, gts[idx])
                 #
                 #每个epoch保留10个提示
                 self.logger.add_scalar('val_loss', loss.item(), epoch*len(ValidLoader)+i)
                 loss_list.append(loss.item())
-                print(f'\rEpoch[{epoch+1}/{self.epoches}][{i}/{len(ValidLoader)}]\t loss: {loss:.4f}', end="")
                 if (i+1) % (max(len(ValidLoader) // 10, 1)) == 0 or self.pulse(60): 
                     temp_l = np.mean(loss_list)
                     print(f'\rEpoch[{epoch+1}/{self.epoches}][{i}/{len(ValidLoader)}]\t avg_loss: {temp_l:.4f}')
+                else:
+                    print(f'\rEpoch[{epoch+1}/{self.epoches}][{i}/{len(ValidLoader)}]\t loss: {loss:.4f}', end="")
                 
-                tensor2np = lambda x:((x/2+0.5).detach().cpu().numpy()*255).transpose(1,2,0).astype(np.uint8)
                 #每个epoch保存10次图片
                 if (i+1) % (max(len(ValidLoader) // 10, 1)) == 0: 
-                    p0 = tensor2np(patch_t0[0])
-                    p1 = tensor2np(patch_t1[0])
-                    i0 = (img_t0[0].detach().cpu().numpy()*255).transpose(1,2,0).astype(np.uint8)
-                    delta = output[0].detach().cpu().numpy()
-                    p0_w = output2patch(p0, delta)
-                    watcher = [p0, p1, p0_w, cv2.absdiff(p0_w, p1), cv2.absdiff(p0, p1)]
+                    tensors2np = lambda x:(x[0].detach().cpu().numpy()).transpose(1,2,0).astype(np.uint8)
+                    temp1 = [tensors2np(img*255) for img in imgs]
+                    temp2 = [tensors2np(img*255) for img in outputs] + [None]
+                    temp3 = [tensors2np(img*255) for img in gts]
+                    watcher = temp1 + temp2 + temp3
                     #watcher = [img_t0[0], img_t1[0]]
-                    img = img_square(watcher, 2, 3)
+                    img = img_square(watcher, 3, 5)
                     cv2.imwrite(self.save_path+f'/val_cycle_{i}.png', img)
-                    self.logger.add_image(f'val_img_sample',
+                    self.logger.add_image(f'valid_img_sample',
                                             img, 
                                             epoch*len(ValidLoader)+i, 
                                             dataformats='HWC')
@@ -226,20 +237,14 @@ class Train_MovingDetection_and_save(_Tasker_base):
                                 epoch+1)
             
 
-    def preprocess(self, img_t0, img_t1, target):  #
+    def preprocess(self, imgs, gts):  #
         '''
         将数据分发的结果送入GPU，转置，转float
         '''
-        img_t0 = img_t0.to(self.device).float()
-        img_t1 = img_t1.to(self.device).float()
-        target = target.to(self.device).float()
-        #
-        img_t0 = torch.nn.functional.interpolate(   input=img_t0, size=(128, 128), 
-                                                    mode='bilinear', align_corners=False)
-        img_t1 = torch.nn.functional.interpolate(   input=img_t1, size=(128, 128), 
-                                                    mode='bilinear',align_corners=False)
-        #
-        return img_t0, img_t1, target
+        for i in range(len(imgs)):
+            imgs[i] = imgs[i].to(self.device).float()
+            gts[i] = gts[i].to(self.device).float()
+        return imgs, gts
 
     def save_model(self, epoch):
         self.model.eval()
@@ -251,37 +256,10 @@ class Train_MovingDetection_and_save(_Tasker_base):
         torch.save(state, temp)
         print(f"\nmodel saved at {temp}.")
         #
-        img_t0 = torch.rand(1, 1, 128, 128)
-        img_t1 = torch.rand(1, 1, 128, 128)
-        traced_model = torch.jit.trace(self.model, (img_t0, img_t1))
-        traced_model.save(F'{self.save_path}/libtorch_jit_model_Homo_cpu.pkl')
-        script_model = torch.jit.script(self.model)
-        script_model.save(F'{self.save_path}/libtorch_script_model_Homo_cpu.pkl')
         self.model.to(self.device)
         
 
-    def model2onnx(self):
-        print('loading state dicts of model ...')
-        temp_states = torch.load(self.args['continue_exp_path'] + '/' + self.args['continue_states_name'])
-        self.model.load_state_dict(temp_states['state_dict'])
-        self.args['continue_train'] = False
-
-        import os, sys
-        onnx_model_path = "models"
-        onnx_model_name = 'model.onnx'
-        full_model_path = os.path.join(onnx_model_path, onnx_model_name)
-        generated_input = ( torch.autograd.Variable(torch.randn(1, 3, 640, 640).cuda()),
-                            torch.autograd.Variable(torch.randn(1, 3, 640, 640).cuda())
-                            )
-        torch.onnx.export(self.model,
-                            generated_input,
-                            full_model_path,
-                            verbose=True,
-                            input_names=["input"],
-                            output_names=["output"],
-                            opset_version=11
-                        )
-
+    
     def get_weight_save_dir(self, epoch):
         '''获取模型保存的路径。'''
         name = self.args["taskerName"]
@@ -308,20 +286,3 @@ class Train_MovingDetection_and_save(_Tasker_base):
             state_dict_update[ori_sd[i]] = state_dict_pretrained[pre_sd[i]]
         self.model.load_state_dict(state_dict_update)
         return
-
-def output2patch(patch_t0, delta):
-    
-    ps = 128
-    fp = np.array([(0.25,0.25),(1.25,0.25),(1.25,1.25),(0.25,1.25)],
-                    dtype=np.float32) * ps
-    pfp = np.float32(fp + delta /16 * ps)
-    H_warp = cv2.getPerspectiveTransform(fp, pfp)
-    #
-    H2 = np.array([1,0,-ps*0.25, 0,1, -ps*0.25,0,0,1]).reshape(3,3)
-    H_warp_patch = np.matmul(np.matmul(H2, H_warp), np.linalg.inv(H2)) 
-    patch_t0_w = cv2.warpPerspective(patch_t0, H_warp_patch, (ps, ps))
-    #
-    #img_t0_w = cv2.warpPerspective(img_t0, H_warp, (ps*2, ps*2))
-    #patch_t0_w = img_t0_w[int(0.25*ps):int(1.25*ps), int(0.25*ps):int(1.25*ps)][:,:,np.newaxis]
-
-    return patch_t0_w

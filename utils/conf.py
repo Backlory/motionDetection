@@ -43,8 +43,8 @@ def get_conf(taskerName = "tasker"):
         arg['taskerName'] = "Train_MovingDetection_and_save"
         arg['img_size_h'] = 640
         arg['img_size_w'] = 640
-        arg['batchSize'] = 8
-        arg['numWorkers'] = 2
+        arg['batchSize'] = 16
+        arg['numWorkers'] = 1
         arg['lr_init'] = 0.005
         arg['iterations'] = 800000
     return arg
