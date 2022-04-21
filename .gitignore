@@ -13,6 +13,7 @@
 *.7z
 *.rar
 *.pkl
+*.pth
 *.pt
 
 datatools
