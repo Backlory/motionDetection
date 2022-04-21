@@ -18,6 +18,7 @@ def updata_adaptive(model, params_dict_new):
     model.load_state_dict(model_dict)
     return model
 
+
 def traced_model(model, dirname="temp/libtorch_script_model_Homo_cpu.pkl'"):
     model.eval()
     model = model.cpu()

@@ -296,17 +296,20 @@ class Inference_Homo_RANSAC():
             return img_base, img_t0_warp
 
     def core(self, img_t0_gray, img_base_gray):
-        kp1, desc1 = findFeatures(img_t0_gray)
-        kp2, desc2 = findFeatures(img_base_gray)
-        keypoints = [kp1,kp2]
-        tp, qp = [], []
-        matches = matchFeatures(kp1, kp2, desc1, desc2, img_t0_gray, img_base_gray)
-        if True:
+        try:
+            kp1, desc1 = findFeatures(img_t0_gray)
+            kp2, desc2 = findFeatures(img_base_gray)
+            keypoints = [kp1,kp2]
+            tp, qp = [], []
+            matches = matchFeatures(kp1, kp2, desc1, desc2, img_t0_gray, img_base_gray)
             for match in matches:
                 tp.append(keypoints[0][match.queryIdx].pt)
                 qp.append(keypoints[1][match.trainIdx].pt)
             tp, qp = np.float32((tp, qp))
             H_warp, status = cv2.findHomography(tp, qp, cv2.RANSAC, 5)
+        except:
+            print("error!")
+            H_warp = np.array([1,0,0,0,1,0,0,0,1], dtype=np.float32()).reshape(3,3)
         return H_warp
 
     def time_test(self):

@@ -60,10 +60,11 @@ if __name__ == "__main__":
         log('!!!!!!!!!!!!!!!!!!!!!!!单应性测试，switch算法!!!!!!!!!!!!!!!!!!!!\n')
         args = get_conf('infer_Homo')
         Infer = Inference_Homo_switcher(args)
-        for ds in ['u','j','k']:
+        for ds in ['k','j','u']:
             for fps in [1,3,6,10,15,30]:
                 Infer.run_test(fps, ds)
         exit(0)
+
         
     if True:
         log('!!!!!!!!!!!!!!!!!!!!!!!运动区域分割!!!!!!!!!!!!!!!!!!!!\n')
