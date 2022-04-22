@@ -170,9 +170,9 @@ def img_square(imgs, h_number = -1, w_number = -1, big_or_small='biggest'):
             imgs[idx] = img
         # 处理大小
         if big_or_small == 'biggest':
-            imgs = [cv2.resize(img, (size_max[1], size_max[0])) for img in imgs]
+            imgs = [cv2.resize(img, (size_max[1], size_max[0]), interpolation=cv2.INTER_NEAREST) for img in imgs]
         elif big_or_small == 'smallest':
-            imgs = [cv2.resize(img, (size_min[1], size_min[0])) for img in imgs]
+            imgs = [cv2.resize(img, (size_min[1], size_min[0]), interpolation=cv2.INTER_NEAREST) for img in imgs]
         imgs = np.array(imgs)
 
     _check_ifnhwc(imgs)

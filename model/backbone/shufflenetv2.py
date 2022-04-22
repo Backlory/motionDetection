@@ -77,20 +77,16 @@ class ShuffleNetV2(nn.Module):
     def __init__(
         self,
         model_size="1.0x",
-        out_stages=(2, 3, 4),
         with_last_conv=False,
         kernal_size=3,
         pretrain=True,
     ):
         super(ShuffleNetV2, self).__init__()
-        # out_stages can only be a subset of (2, 3, 4)
-        assert set(out_stages).issubset((2, 3, 4))
-
+        
         print("model size is ", model_size)
 
         self.stage_repeats = [4, 8, 4]
         self.model_size = model_size
-        self.out_stages = out_stages
         self.with_last_conv = with_last_conv
         self.kernal_size = kernal_size
         if model_size == "0.5x":
@@ -157,20 +153,13 @@ class ShuffleNetV2(nn.Module):
             input_channels = output_channels'''
         
         output_channels = self._stage_out_channels[-1]
-        if self.with_last_conv:
-            conv5 = nn.Sequential(
-                nn.Conv2d(input_channels, output_channels, 1, 1, 0, bias=False),
-                nn.BatchNorm2d(output_channels),
-                nn.LeakyReLU(negative_slope=0.1, inplace=True),
-            )
-            self.stage4.add_module("conv5", conv5)
         self._initialize_weights(pretrain)
 
     def forward(self, x):
         out1 = self.conv1(x)
-        #x = self.maxpool(x)
-        output = []
-        '''
+        x = self.maxpool(x)
+        '''output = []
+        
         for i in range(2, 5):
             stage = getattr(self, "stage{}".format(i))
             x = stage(x)
@@ -179,9 +168,8 @@ class ShuffleNetV2(nn.Module):
         #
         out2 = self.stage2(out1)
         out3 = self.stage3(out2)
-        out4 = self.stage4(out3)
-        
-        return (out1, out2, out3, out4)
+        #out4 = self.stage4(out3)
+        return (out1, out2, out3)
 
     def _initialize_weights(self, pretrain=True):
         print("init weights...")
@@ -208,7 +196,7 @@ class ShuffleNetV2(nn.Module):
                         print(pretrained_state_dict[k].shape ==v.shape)
                     else:
                         print((k in pretrained_state_dict.keys()), "==", k,"=>",v.shape)
-            if False:
+            if True:
                 for k,v in pretrained_state_dict.items():
                     if (k in self.state_dict().keys()):
                         pass
@@ -217,13 +205,13 @@ class ShuffleNetV2(nn.Module):
                         print((k in self.state_dict().keys()), "==", k,"=>",v.shape)
 
             self.load_state_dict(pretrained_state_dict, strict=False)
-
+            
 
 if __name__ == "__main__":
     device = torch.device('cuda:0')
     backbone = ShuffleNetV2(pretrain=True).to(device)
     
-    img = cv2.imread("model/067.png")
+    img = cv2.imread("../data/Janus_UAV_Dataset/Train/video_1/video/067.png")
     img = img.astype(np.float32) / 255
     mean = np.array([103.53, 116.28, 123.675], dtype=np.float32).reshape(1, 1, 3) / 255
     std = np.array([57.375, 57.12, 58.395], dtype=np.float32).reshape(1, 1, 3) / 255
