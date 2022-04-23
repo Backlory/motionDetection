@@ -14,13 +14,12 @@ class lossfunc(nn.Module):
         #self.maxpool = nn.MaxPool2d()
     def forward(self, preds, targets):
         loss = 0
-        for pred in preds:
-            n, _, h, w = pred.shape
-            target = F.interpolate(targets, (h,w))
-            loss1 = self.diceloss(pred, target)
-            loss2 = self.focalloss(pred, target)
-            loss += (self.alpha)*loss1 + (1-self.alpha)*loss2
-        return loss
+        for idx,pred in enumerate(preds):
+            target = nn.AdaptiveMaxPool2d(80//(2**idx))(targets)
+            loss_dice = self.diceloss(pred, target)
+            loss_focal = self.focalloss(pred, target)
+            loss += (self.alpha)*loss_dice + (1-self.alpha)*loss_focal
+        return loss, loss_dice, loss_focal
 
 
 class BinaryDiceLoss(nn.Module):

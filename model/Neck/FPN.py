@@ -5,8 +5,10 @@ import torch.nn.functional as F
 import cv2
 import os
 import sys
-
-from model.otherblocks.blocks import CSP1_n, CBL
+try:
+    from model.otherblocks.blocks import CSP1_n, CBL
+except:
+    from ..otherblocks.blocks import CSP1_n, CBL
 
 class FPNBlock(nn.Module):
     def __init__(self, c80, c40, c20):

@@ -57,25 +57,28 @@ def main():
     device = torch.device("cuda:0")
     print("model...")
     model = MDNet().to(device)
+
     print("criterion...")
     criterion = lossfunc()
+
     print("optimizer...")
     optimizer = optim.Adam(model.parameters(), 1e-4)
+
     try:
         assert(device.type == "cuda")
         from torch.cuda.amp import GradScaler, autocast
     except:
         print("no cuda device available, so amp will be forbidden.")
         from utils.cuda import GradScaler, autocast
-    print("scaler...")
     scaler = GradScaler(enabled=True)
+
     print("train...")
     if True:
+        
         len_all = len(os.listdir("../data/Janus_UAV_Dataset/Train/video_1/video/"))
-        for i in range(len_all * 100):
+        for i in range(len_all * 1000):
             i = i % len_all
             img_t1 = loadimg(f"../data/Janus_UAV_Dataset/Train/video_1/video/{str(i).zfill(3)}.png").to(device)
-            img_t2 = loadimg(f"../data/Janus_UAV_Dataset/Train/video_1/video/{str(i+1).zfill(3)}.png").to(device)
             
             gt = cv2.imread(f"../data/Janus_UAV_Dataset/Train/video_1/gt_mov/{str(i).zfill(3)}.png", cv2.IMREAD_GRAYSCALE) 
             gt = 255 - gt
@@ -84,16 +87,16 @@ def main():
             target = cv2.merge([gt, 255-gt])
             target = torch.Tensor(target.transpose(2,0,1) / 255).float()[None].contiguous().to(device)
             
-            outputs = model(img_t1, img_t2)
-            loss = criterion(outputs, target)
+            outputs = model(img_t1)
+            loss, loss_dice, loss_focal = criterion(outputs, target)
             
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
-            print(i ,"== loss:", "{:.3f}".format(loss.item()))
+            print(f"sample {i}", ", loss={:.5f}, loss_dice={:.5f}, loss_focal={:.5f}".format(loss, loss_dice, loss_focal))
         
-            watcher = [img_t1[0], img_t2[0], gt, outputs[0][0,0], outputs[1][0,0], outputs[2][0,0]]
-            cv2.imwrite("1.png", img_square(watcher, 2, 2))
+            watcher = [img_t1[0], gt, outputs[0][0,0], outputs[1][0,0], outputs[2][0,0]]
+            cv2.imwrite("1.png", img_square(watcher, 2, 6))
         print("task has been finished.")
 
     return

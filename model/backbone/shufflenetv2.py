@@ -157,7 +157,7 @@ class ShuffleNetV2(nn.Module):
 
     def forward(self, x):
         out1 = self.conv1(x)
-        #out1 = self.maxpool(out1)
+        out1 = self.maxpool(out1)
         '''output = []
         
         for i in range(2, 5):
