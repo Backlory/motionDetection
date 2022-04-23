@@ -41,55 +41,59 @@ class Dataset_JanusUAV(_Dataset_Generater_Base):
                 index = 0
         except:
             pass
-        a = time.time()
         paths, _, path_gt = self.data_list[index]
         img = cv2.imread(paths, cv2.IMREAD_COLOR)
-        img = torch.tensor(img/255).float().permute(2,0,1)    #hwc->chw
+        
         target = cv2.imread(path_gt, cv2.IMREAD_GRAYSCALE)
         ret, target = cv2.threshold(target, 127, 255, cv2.THRESH_BINARY_INV)
-        target = torch.tensor(target[None]/255).float()
-        #print("读取原图", time.time()- a,"s")
-        #
+
         if self.args['ifDataAugment']:
             img, target = self.transform(img, target)
+
+        img = torch.tensor(img/255).float().permute(2,0,1)    #hwc->chw
+        target = torch.tensor(target[None]/255).float()
         #
-        #print("transform", time.time()- a,"s")
         img, target = self.preprocess(img, target)
-        #print("preprocess", time.time()- a,"s")
         #
         return img, target
 
-    def transform(self, img, target):
+    def transform(self, img:np.array, target):
         if True:                        #随机裁剪至原始尺寸的70%~100%
-            _, h, w = img.shape
-            th, tw = int(h*(random.random()*0.3+0.7)), int(w*(random.random()*0.3+0.7))
-            x1 = random.randint(0, w - tw)
-            y1 = random.randint(0, h - th)
-            img= img[:, y1: y1 + th,x1: x1 + tw]
-            target = target[:, y1: y1 + th,x1: x1 + tw]
-        if random.random() >0.5:    #高斯噪声
-            temp_k = torch.rand(1)*90 + 20
-            img = img + torch.randn(img.size())/temp_k
-            img = torch.clip(img, 0, 1)
-        if random.random() >0.5:    #水平翻转
-            img = T_F.hflip(img)
-            target = T_F.hflip(target)
-        if random.random() >0.5:    #垂直翻转
-            img = T_F.vflip(img)
-            target = T_F.vflip(target)
-        if random.random() >0.5:    #旋转
-            temp_r = random.randrange(-30, 30)
-            img = T_F.rotate(img, temp_r)
-            target = T_F.rotate(target, temp_r)
+            h, w, _ = img.shape
+            th, tw = int(h*(np.random.rand()*0.3+0.7)), int(w*(np.random.rand()*0.3+0.7))
+            x1 = np.random.randint(0, w - tw)
+            y1 = np.random.randint(0, h - th)
+            img= img[y1: y1 + th,x1: x1 + tw, :]
+            target = target[y1: y1 + th,x1: x1 + tw]
+        if np.random.rand() >0.5:    #高斯噪声
+            gaussian_noise = np.zeros_like(img, dtype=np.float)
+            gaussian_noise = (cv2.randn(gaussian_noise, (0,0,0), (1,1,1))/ 5 * (random.random()*10 + 5)).astype(np.int)
+            img = img + gaussian_noise
+            img = np.clip(img, 0, 255)
+            img = img.astype(np.uint8)
+        if np.random.rand() >0.5:    #水平翻转
+            img = cv2.flip(img, 1)
+            target = cv2.flip(target, 1)
+        if np.random.rand() >0.5:    #垂直翻转
+            img = cv2.flip(img, 0)
+            target = cv2.flip(target, 0)
+        if np.random.rand() >0.5:    #旋转
+            temp_r = np.random.randint(-30, 30)
+            (h,w)=img.shape[:2]
+            center=(w//2,h//2)
+            M = cv2.getRotationMatrix2D(center,temp_r, 1.0)
+            img = cv2.warpAffine(img, M, (w, h))
+            target = cv2.warpAffine(target, M, (w, h))
+        img = cv2.resize(img, (640, 640))
+        target = cv2.resize(target, (640, 640))
         return img, target
 
     def preprocess(self, img, target):
-        img = F.interpolate(img[None], (640, 640))[0]
-        target = F.interpolate(target[None], (640, 640))[0]
         return img, target
 
 if __name__=="__main__":
     from mypath import Path
+
     Dataset_generater = Dataset_JanusUAV(Path.db_root_dir('janus_uav'))
     Dataset_train = Dataset_generater.generate('train')
     Dataset_valid = Dataset_generater.generate('valid')
@@ -103,8 +107,8 @@ if __name__=="__main__":
     for i, item in enumerate(dataloader):
         img, target = item
 
-        img = (img[0] * 255).numpy().transpose(1,2,0).astype(np.uint8)
         print(img.shape)
+        img = (img[0] * 255).numpy().transpose(1,2,0).astype(np.uint8)
         cv2.imwrite(f"{i}.png", img)
 
         target = (target[0] * 255).numpy().transpose(1,2,0).astype(np.uint8)
