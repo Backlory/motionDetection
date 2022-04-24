@@ -19,18 +19,13 @@ except:
     from otherblocks.blocks import CSP1_n, CBL
     from otherblocks.attention import CoordAttention
 
-class MDNet(nn.Module):
-    def __init__(self):
+class GridPreDetector(nn.Module):
+    def __init__(self, channels = [116, 232, 464]):
         super().__init__()
-        #self.adaptresize = nn.AdaptiveAvgPool2d((512, 512))
-        self.channels = [116, 232, 464]
-        # backbone
-        self.backbone = ShuffleNetV2()
-        self.sppBlock = SPPBlock(464, 464)
+        self.channels = channels
         self.CA_80 = CoordAttention(self.channels[0],self.channels[0],16)
         self.CA_40 = CoordAttention(self.channels[1],self.channels[1],16)
         self.CA_20 = CoordAttention(self.channels[2],self.channels[2],16)
-        # neck
         self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
         self.FPN40out = nn.Sequential(
             CSP1_n(self.channels[2]+self.channels[1], self.channels[1], n_resblock=3),
@@ -46,11 +41,7 @@ class MDNet(nn.Module):
         self.out20 = nn.Conv2d(self.channels[2], 2, 1, 1, 0)
         self.softmax = nn.Softmax(1)
 
-    
-
-    
-    def forward(self, img):
-        _, fea_out2, fea_out3, fea_out4 = self.backbone(img)
+    def forward(self, fea_out2, fea_out3, fea_out4):
         fea_out2 = fea_out2 + self.CA_80(fea_out2)
         fea_out3 = fea_out3 + self.CA_40(fea_out3)
         fea_out4 = fea_out4 + self.CA_20(fea_out4)
@@ -64,18 +55,31 @@ class MDNet(nn.Module):
         fea_out3_up = self.upsample(fea_out3)
         feas_80 = torch.cat([fea_out2, fea_out3_up], dim=1)
         feas_80 = self.FPN80out(feas_80)
-        # PAN
-        
-        #
-        #feas_80 = torch.cat([], dim=1)
-        #feas_40 = torch.cat([], dim=1)
-        #feas_20 = torch.cat([], dim=1)
         # Head
         out80 = self.out80(feas_80)
         out40 = self.out40(feas_40)
         out20 = self.out20(feas_20)
+
         return out80, out40, out20
 
+class MDNet(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.channels = [116, 232, 464]
+        # backbone
+        self.backbone = ShuffleNetV2()
+        self.sppBlock = SPPBlock(self.channels[2], self.channels[2])
+        # neck
+        self.gridpredetector = GridPreDetector(self.channels)
+        #
+        self._initialize_weights()
+    
+    def forward(self, img):
+        # 特征提取
+        _, fea_out2, fea_out3, fea_out4 = self.backbone(img)
+        # 运动区域感知
+        out80, out40, out20 = self.gridpredetector(fea_out2, fea_out3, fea_out4)
+        return out80, out40, out20
         
     def _initialize_weights(self):
         print("init weights...")

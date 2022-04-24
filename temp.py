@@ -75,12 +75,12 @@ def main():
     print("train...")
     if True:
         
-        len_all = len(os.listdir("../data/Janus_UAV_Dataset/Train/video_1/video/"))
+        len_all = len(os.listdir("E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_1/video/"))
         for i in range(len_all * 1000):
             i = i % len_all
-            img_t1 = loadimg(f"../data/Janus_UAV_Dataset/Train/video_1/video/{str(i).zfill(3)}.png").to(device)
+            img_t1 = loadimg(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_1/video/{str(i).zfill(3)}.png").to(device)
             
-            gt = cv2.imread(f"../data/Janus_UAV_Dataset/Train/video_1/gt_mov/{str(i).zfill(3)}.png", cv2.IMREAD_GRAYSCALE) 
+            gt = cv2.imread(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_1/gt_mov/{str(i).zfill(3)}.png", cv2.IMREAD_GRAYSCALE) 
             gt = 255 - gt
             _, gt = cv2.threshold(gt, 127, 255, cv2.THRESH_BINARY)
             #temp = nn.AdaptiveMaxPool2d(80)(torch.Tensor(gt[None,None])).numpy()[0,0];cv2.imwrite("1.png", temp);print(temp.shape)
