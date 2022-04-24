@@ -14,7 +14,7 @@ from model.otherblocks.spp import SPPBlock
 from model.Neck.FPN import FPNBlock
 from model.Neck.PAN import PANBlock
 
-class MDNet(nn.Module):
+class FastGridPreDetector(nn.Module):
     def __init__(self):
         super().__init__()
         #self.adaptresize = nn.AdaptiveAvgPool2d((512, 512))

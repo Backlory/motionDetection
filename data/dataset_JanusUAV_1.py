@@ -46,12 +46,13 @@ class Dataset_JanusUAV(_Dataset_Generater_Base):
         
         target = cv2.imread(path_gt, cv2.IMREAD_GRAYSCALE)
         ret, target = cv2.threshold(target, 127, 255, cv2.THRESH_BINARY_INV)
+        target = cv2.merge([target, 255 - target])
 
         if self.args['ifDataAugment']:
             img, target = self.transform(img, target)
 
         img = torch.tensor(img/255).float().permute(2,0,1)    #hwc->chw
-        target = torch.tensor(target[None]/255).float()
+        target = torch.tensor(target/255).float().permute(2,0,1)
         #
         img, target = self.preprocess(img, target)
         #

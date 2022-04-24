@@ -62,13 +62,16 @@ class GridPreDetector(nn.Module):
 
         return out80, out40, out20
 
-class MDNet(nn.Module):
+class FastGridPreDetector(nn.Module):
     def __init__(self):
         super().__init__()
+        self.hist_fea80 = None
+        self.hist_fea40 = None
+        self.hist_fea20 = None
         self.channels = [116, 232, 464]
         # backbone
         self.backbone = ShuffleNetV2()
-        self.sppBlock = SPPBlock(self.channels[2], self.channels[2])
+        #self.sppBlock = SPPBlock(self.channels[2], self.channels[2])
         # neck
         self.gridpredetector = GridPreDetector(self.channels)
         #
@@ -76,10 +79,24 @@ class MDNet(nn.Module):
     
     def forward(self, img):
         # 特征提取
-        _, fea_out2, fea_out3, fea_out4 = self.backbone(img)
-        # 运动区域感知
-        out80, out40, out20 = self.gridpredetector(fea_out2, fea_out3, fea_out4)
+        feas = self.backbone(img)
+        self.hist_fea80 = feas[1]
+        self.hist_fea40 = feas[2]
+        self.hist_fea20 = feas[3]
+        out80, out40, out20 = self.gridpredetector(self.hist_fea80, self.hist_fea40, self.hist_fea20)
         return out80, out40, out20
+    
+    def get_grid_feature(self, hist_grid):
+        '''
+        根据历史网格，获取当前网格，输出对应的特征向量组。用于后续检测用。
+        执行匈牙利匹配获取网格区域匹配，然后计算并集的最小外接矩形，作为运动检测区域？
+        '''
+        #获取当前关注网格区域
+        #获取当前区域对应的特征组
+        self.hist_fea80
+        self.hist_fea40
+        self.hist_fea20
+        return
         
     def _initialize_weights(self):
         print("init weights...")
@@ -99,7 +116,7 @@ class MDNet(nn.Module):
 
 if __name__ == "__main__":
 
-    model = MDNet().cuda()
+    model = FastGridPreDetector().cuda()
     input = torch.rand([8,3,640,640]).cuda()
     output = model(input)
     summary(model, (3,640,640))

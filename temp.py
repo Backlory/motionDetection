@@ -8,7 +8,7 @@ import os
 import sys
 
 from utils.img_display import img_square
-from model.MDNet import MDNet
+from model.FastGridPreDetector import FastGridPreDetector
 from utils.loss import lossfunc
 # 模型
 # https://jishuin.proginn.com/p/763bfbd59ac5
@@ -56,7 +56,7 @@ def vis_bbox(img, bboxes):
 def main():
     device = torch.device("cuda:0")
     print("model...")
-    model = MDNet().to(device)
+    model = FastGridPreDetector().to(device)
 
     print("criterion...")
     criterion = lossfunc()
