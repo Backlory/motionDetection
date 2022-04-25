@@ -126,10 +126,10 @@ class Train_FastGridPreDetector_and_save(_Tasker_base):
                 loss_list.append(loss.item())
                 if (i+1) % (max(len(TrainLoader) // 10, 1)) == 0: 
                     temp_l = np.mean(loss_list)
-                    print(f'\rEpoch[{epoch+1}/{self.epoches}][{i}/{len(TrainLoader)}]-{toc(t_start)}ms\t avg_loss: {temp_l:.4f}')
-                    toc(t1,"1/10 of all", (i+1) // (max(len(TrainLoader) // 10, 1)), mute=False)
+                    print(f'\rEpoch[{epoch+1}/{self.epoches}][{i}/{len(TrainLoader)}]-{toc(t_start)} ms\t avg_loss: {temp_l:.4f}')
+                    #toc(t1,"1/10 of all", (i+1) // (max(len(TrainLoader) // 10, 1)), mute=False)
                 else:
-                    print(f'\rEpoch[{epoch+1}/{self.epoches}][{i}/{len(TrainLoader)}]-{toc(t_start)}ms\t loss: {loss:.4f}=dice({l1:.4f})+focal({l2:.4f})', end="")
+                    print(f'\rEpoch[{epoch+1}/{self.epoches}][{i}/{len(TrainLoader)}]-{toc(t_start)} ms\t loss: {loss:.4f}=dice({l1:.4f})+focal({l2:.4f})', end="")
                 #toc(t2,"消息更新",mute=False)
                 
                 #每个epoch保存10次图片
