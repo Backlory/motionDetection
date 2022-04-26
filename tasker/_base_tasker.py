@@ -7,6 +7,32 @@ from tensorboardX import SummaryWriter
 from utils.mics import colorstr
 from utils.timers import tic, toc
 
+import sys
+class Logger(object):
+    def __init__(self, filename='default.log', stream=sys.stdout):
+        self.terminal = stream
+        self.log = open(filename, 'a')
+    def write(self, message):
+        self.terminal.write(message)
+        #
+        if message == "" or message == "\n" or message == "\r":
+            return
+        if message[0] == '\r' and message[-1] != "\n":
+            message = "\n"
+        if message[0] == "\r":
+            message = message[1:]
+        if message[0] == "\033":
+            message = message[5:-4]
+
+        if message != "\n":
+            message = "["+ datetime.datetime.now().strftime(r'%Y-%m-%d-%H:%M:%S') + "]: " +  message + "\n"
+            self.log.write(message)
+    def __del__(self):
+        self.log.close()
+    def flush(self):
+        pass
+
+
 class _Tasker_base():
     def __init__(self, args):
         super().__init__()
@@ -48,7 +74,8 @@ class _Tasker_base():
             temp = temp.replace(':',        ':\t')
             with open(self.save_path+'/config.yaml', 'w') as f:
                 f.write(temp)
-            
+        sys.stdout = Logger(self.save_path+'\history.log', sys.stdout)
+        sys.stderr = Logger(self.save_path+'\history.log_file', sys.stderr)
         # 设备
         print(colorstr('Initializing device...', 'yellow'))
         if self.args['ifUseGPU']:

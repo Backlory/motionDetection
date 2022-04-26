@@ -157,7 +157,7 @@ class ShuffleNetV2(nn.Module):
 
     def forward(self, x):
         out1 = self.conv1(x)
-        out1 = self.maxpool(out1)
+        temp = self.maxpool(out1)
         '''output = []
         
         for i in range(2, 5):
@@ -166,7 +166,7 @@ class ShuffleNetV2(nn.Module):
             if i in self.out_stages:
                 output.append(x)'''
         #
-        out2 = self.stage2(out1)
+        out2 = self.stage2(temp)
         out3 = self.stage3(out2)
         out4 = self.stage4(out3)
         return (out1, out2, out3, out4)

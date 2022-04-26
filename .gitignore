@@ -22,3 +22,5 @@ exps
 temp
 tmp
 log.txt
+*.log
+*.log_file

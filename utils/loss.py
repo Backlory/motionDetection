@@ -9,30 +9,25 @@ class lossFunc_Grid(nn.Module):
     def __init__(self):
         super().__init__()
         self.diceloss = BinaryDiceLoss()
-        self.focalloss = WeightedFocalLoss(alpha = 0.01)
+        self.focalloss = WeightedFocalLoss(alpha = 0.90)
         self.alpha = 0.5
         self.maxpool8 = nn.MaxPool2d(4)   # 640 / 8 = 80
         self.maxpool2 = nn.MaxPool2d(2)   # 
         
     def forward(self, preds, targets):
         loss = 0
-        target160 = self.maxpool8(targets)  #640/4=160
-        target80 = self.maxpool2(target160)
-        target40 = self.maxpool2(target80)
-        target20 = self.maxpool2(target40)
-        #
-        loss_dice = self.diceloss(preds[0], target80)
-        loss_focal = self.focalloss(preds[0], target80)
-        loss += (self.alpha)*loss_dice + (1-self.alpha)*loss_focal
+        loss_dice_all = 0
+        loss_focal_all = 0
 
-        loss_dice = self.diceloss(preds[1], target40)
-        loss_focal = self.focalloss(preds[1], target40)
-        loss += (self.alpha)*loss_dice + (1-self.alpha)*loss_focal
-        
-        loss_dice = self.diceloss(preds[2], target20)
-        loss_focal = self.focalloss(preds[2], target20)
-        loss += (self.alpha)*loss_dice + (1-self.alpha)*loss_focal
-        return loss, loss_dice, loss_focal
+        for i in range(len(preds)):
+            loss_dice = self.diceloss(preds[i], targets[i])
+            loss_focal = self.focalloss(preds[i], targets[i])
+            
+            loss += (self.alpha)*loss_dice + (1-self.alpha)*loss_focal
+            loss_dice_all += loss_dice
+            loss_focal_all += loss_focal
+
+        return loss, loss_dice_all, loss_focal_all
 
 
 class BinaryDiceLoss(nn.Module):

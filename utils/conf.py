@@ -37,13 +37,13 @@ def get_conf(taskerName = "tasker"):
 
     if "Train_FastGridPreDetector_and_save" in taskerName:
         arg['record'] = True
-        arg['ifContinueTask'] = False
-        arg['continueTaskExpPath'] = "-"
-        arg['continueWeightsFile'] = "temp/model_Train_FastGridPreDetector_and_save_bs4_92.pkl"
+        arg['ifContinueTask'] = True
+        arg['continueTaskExpPath'] = "exps/20220426_12_01_36_Train_FastGridPreDetector_and_save"
+        arg['continueWeightsFile'] = "model_Train_FastGridPreDetector_and_save_bs8_55.pkl"
         arg['taskerName'] = "Train_FastGridPreDetector_and_save"
-        arg['batchSize'] = 4
+        arg['batchSize'] = 16
         arg['numWorkers'] = 1
-        arg['lr_init'] = 0.0001
+        arg['lr_init'] = 0.00001
         arg['iterations'] = -1
-        arg['epoches'] = 200
+        arg['epoches'] = 300
     return arg

@@ -5,6 +5,7 @@ from tasker.train_FastGridPreDetector import Train_FastGridPreDetector_and_save
 from utils.conf import get_conf
 import datetime
 
+
 def log(strs):
     with open("log.txt", "a+") as f:
         f.write( datetime.datetime.now().strftime(r'%Y-%m-%d-%H:%M:%S'))
