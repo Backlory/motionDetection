@@ -1,14 +1,17 @@
 import random
+from tqdm import trange
 import cv2
 import numpy as np
 import torch
 import torch.optim as optim
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from data.mypath import Path
 from data.dataset_JanusUAV_1 import Dataset_JanusUAV
 from model.FastGridPreDetector import FastGridPreDetector
+from utils.indicator import Evaluator
 from utils.loss import lossFunc_Grid
 
 from tasker._base_tasker import _Tasker_base
@@ -104,15 +107,15 @@ class Train_FastGridPreDetector_and_save(_Tasker_base):
                 self.logger.add_scalar('learning rate realtime', 
                                         self.optimizer.param_groups[0]['lr'], 
                                         epoch*len(TrainLoader)+i)
-                imgs, gts = data_item
-                imgs, gts = self.preprocess(imgs, gts)
+                img, gt = data_item
+                img, gts = self.preprocess(img, gt)
                 #toc(t2,"预处理",mute=False)
                 #
                 self.optimizer.zero_grad()
                 
                 with autocast():
-                    outputs = self.model(imgs) 
-                    loss,l1,l2 = self.criterion(outputs, gts)
+                    outputs = self.model(img) 
+                    loss,l1,l2 = self.criterion(outputs, gts[1:4])
                 #toc(t2,"推理",mute=False)
                 self.scaler.scale(loss).backward()
                 #scaler.unscale_(self.optimizer)
@@ -126,9 +129,11 @@ class Train_FastGridPreDetector_and_save(_Tasker_base):
                 loss_list.append(loss.item())
                 if (i+1) % (max(len(TrainLoader) // 10, 1)) == 0: 
                     temp_l = np.mean(loss_list)
+                    print('\r',' ' * 100, end="")
                     print(f'\rEpoch[{epoch+1}/{self.epoches}][{i}/{len(TrainLoader)}]-{toc(t_start)} ms\t avg_loss: {temp_l:.4f}')
                     #toc(t1,"1/10 of all", (i+1) // (max(len(TrainLoader) // 10, 1)), mute=False)
                 else:
+                    print('\r',' ' * 100, end="")
                     print(f'\rEpoch[{epoch+1}/{self.epoches}][{i}/{len(TrainLoader)}]-{toc(t_start)} ms\t loss: {loss:.4f}=dice({l1:.4f})+focal({l2:.4f})', end="")
                 #toc(t2,"消息更新",mute=False)
                 
@@ -136,13 +141,16 @@ class Train_FastGridPreDetector_and_save(_Tasker_base):
                 if (i+1) % (max(len(TrainLoader) // 10, 1)) == 0: 
                     sm = nn.Softmax(0)
                     watcher = []
-                    watcher.append(imgs[0])
-                    watcher.append(gts[0,0])
+                    watcher.append(img[0])
+                    watcher.append(gts[1][0,0])
+                    watcher.append(gts[2][0,0])
+                    watcher.append(gts[3][0,0])
+                    watcher.append(gts[0][0,0])
                     watcher.append(sm(outputs[0][0])[0])
                     watcher.append(sm(outputs[1][0])[0])
                     watcher.append(sm(outputs[2][0])[0])
                     
-                    img = img_square(watcher, 2, 3)
+                    img = img_square(watcher, 2, 4)
                     cv2.imwrite(self.save_path+f'/tri_cycle_{i}.png', img)
                     self.logger.add_image(f'train_img_sample',
                                             img, 
@@ -180,36 +188,53 @@ class Train_FastGridPreDetector_and_save(_Tasker_base):
             epoch = self.epoch_resume
 
         self.criterion = lossFunc_Grid()
-        
+        self.evaluator80 = Evaluator(2)
+        self.evaluator40 = Evaluator(2)
+        self.evaluator20 = Evaluator(2)
         with torch.no_grad():
+            print( colorstr(f'validing...', 'yellow') )
             for i, data_item in enumerate(ValidLoader):
-                imgs, gts = data_item
-                imgs, gts = self.preprocess(imgs, gts)
+                img, gt = data_item
+                img, gts = self.preprocess(img, gt)
                 #
-                outputs = self.model(imgs) #flow_L1, flow_L2, flow_L3, flow_L4
-                loss = self.criterion(outputs, gts)[0]
+                outputs = self.model(img) #flow_L1, flow_L2, flow_L3, flow_L4
+                loss = self.criterion(outputs, gts[1:4])[0]
                 loss_list.append(loss.item())
+
+                #self.evaluator80.add_batch(outputs[0], gts[1])
+                #self.evaluator40.add_batch(outputs[1], gts[2])
+                #self.evaluator20.add_batch(outputs[2], gts[3])
                 #每个epoch保存10次图片
                 if (i+1) % (max(len(ValidLoader) // 10, 1)) == 0: 
+                    print(f"{i+1}/{len(ValidLoader)}...")
                     sm = nn.Softmax(0)
                     watcher = []
-                    watcher.append(imgs[0])
-                    watcher.append(gts[0,0])
+                    watcher.append(img[0])
+                    watcher.append(gts[1][0,0])
+                    watcher.append(gts[2][0,0])
+                    watcher.append(gts[3][0,0])
+                    watcher.append(gts[0][0,0])
                     watcher.append(sm(outputs[0][0])[0])
                     watcher.append(sm(outputs[1][0])[0])
                     watcher.append(sm(outputs[2][0])[0])
                     
-                    img = img_square(watcher, 2, 3)
+                    img = img_square(watcher, 2, 4)
                     cv2.imwrite(self.save_path+f'/val_cycle_{i}.png', img)
                     self.logger.add_image(f'valid_img_sample',
                                             img, 
                                             epoch*len(ValidLoader)+i, 
                                             dataformats='HWC')
-        
         temp_l = np.mean(loss_list)
         print("\n========")
         print(f'Epoch[{epoch+1}/{self.epoches}][{i}/{len(ValidLoader)}]\t avg_loss: {temp_l:.4f}')
-                
+        
+        #for idx, ev in enumerate( [self.evaluator80, self.evaluator40, self.evaluator20] ):
+        #    mIoU, FWIoU, Acc, mAcc, mPre, mRecall, mF1, AuC = ev.evaluateAll()
+        #    print(f"Evaluator at scale = {80/(2**idx)}:")
+        #    print(ev.confusion_matrix)
+        #    print(f"mIoU={mIoU:.4f}, FWIoU={FWIoU:.4f}, Acc={Acc:.4f}, mAcc={mAcc:.4f}")
+        #    print(f"mPre={mPre:.4f}, mRecall={mRecall:.4f}, mF1={mF1:.4f}, AuC={AuC:.4f}")
+
         self.logger.add_scalar('valid_loss_avg', 
                                 np.mean(loss_list), 
                                 epoch+1)
@@ -221,6 +246,11 @@ class Train_FastGridPreDetector_and_save(_Tasker_base):
         '''
         imgs = imgs.to(self.device).float()
         gts = gts.to(self.device).float()
+        temp1 = F.max_pool2d(gts, kernel_size=8, stride=8)
+        temp2 = F.max_pool2d(temp1, kernel_size=2, stride=2)
+        temp3 = F.max_pool2d(temp2, kernel_size=2, stride=2)
+        gts = [gts, temp1, temp2, temp3]
+        
         return imgs, gts
 
     def save_model(self, epoch):
