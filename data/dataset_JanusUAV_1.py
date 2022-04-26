@@ -52,6 +52,14 @@ class Dataset_JanusUAV(_Dataset_Generater_Base):
             img, target = self.transform(img, target)
 
         img = torch.tensor(img/255).float().permute(2,0,1)    #hwc->chw
+        _,h,w = img.shape
+        img = img.view(3,-1)
+        img_mean = img.mean(1)
+        img_std = img.std(1)
+        img[0] = (img[0] - img_mean[0]) / img_std[0]
+        img[1] = (img[1] - img_mean[1]) / img_std[1]
+        img[2] = (img[2] - img_mean[2]) / img_std[2]
+        
         target = torch.tensor(target/255).float().permute(2,0,1)
         #
         img, target = self.preprocess(img, target)

@@ -1,3 +1,4 @@
+from pyexpat import model
 import numpy as np
 import cv2
 import torch 
@@ -9,7 +10,8 @@ import sys
 
 from utils.img_display import img_square
 from model.FastGridPreDetector import FastGridPreDetector
-from utils.loss import lossfunc
+from model.backbone.shufflenetv2 import ShuffleNetV2 
+from model.Corr.Corr import CorrBlock
 # 模型
 # https://jishuin.proginn.com/p/763bfbd59ac5
 
@@ -56,10 +58,12 @@ def vis_bbox(img, bboxes):
 def main():
     device = torch.device("cuda:0")
     print("model...")
-    model = FastGridPreDetector().to(device)
-
+    #model = FastGridPreDetector().to(device)
+    model = ShuffleNetV2(pretrain=True).to(device)
+    mycorr = CorrBlock(radius=4)
+    
     print("criterion...")
-    criterion = lossfunc()
+    criterion = nn.MSELoss()
 
     print("optimizer...")
     optimizer = optim.Adam(model.parameters(), 1e-4)
@@ -76,9 +80,10 @@ def main():
     if True:
         
         len_all = len(os.listdir("E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_1/video/"))
-        for i in range(len_all * 1000):
-            i = i % len_all
-            img_t1 = loadimg(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_1/video/{str(i).zfill(3)}.png").to(device)
+        for i in range(len_all * 1000-1000):
+            i = i % (len_all-1)
+            img_t0 = loadimg(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_1/video/{str(i).zfill(3)}.png").to(device)
+            img_t1 = loadimg(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_1/video/{str(i+1).zfill(3)}.png").to(device)
             
             gt = cv2.imread(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_1/gt_mov/{str(i).zfill(3)}.png", cv2.IMREAD_GRAYSCALE) 
             gt = 255 - gt
@@ -87,16 +92,28 @@ def main():
             target = cv2.merge([gt, 255-gt])
             target = torch.Tensor(target.transpose(2,0,1) / 255).float()[None].contiguous().to(device)
             
-            outputs = model(img_t1)
-            loss, loss_dice, loss_focal = criterion(outputs, target)
+            outputs_0 = model(img_t0)
+            outputs_1 = model(img_t1)
+            '''
+            outputs[0].shape
+            torch.Size([1, 24, 160, 160])
+            outputs[1].shape
+            torch.Size([1, 116, 80, 80])
+            outputs[2].shape
+            torch.Size([1, 232, 40, 40])
+            outputs[3].shape
+            torch.Size([1, 464, 20, 20])
+            '''
+            #temp = mycorr()
             
-            scaler.scale(loss).backward()
-            scaler.step(optimizer)
-            scaler.update()
-            print(f"sample {i}", ", loss={:.5f}, loss_dice={:.5f}, loss_focal={:.5f}".format(loss, loss_dice, loss_focal))
+            #scaler.scale(loss).backward()
+            #scaler.step(optimizer)
+            #scaler.update()
+            #print(f"sample {i}", ", loss={:.5f}, loss_dice={:.5f}, loss_focal={:.5f}".format(loss, loss_dice, loss_focal))
         
-            watcher = [img_t1[0], gt, outputs[0][0,0], outputs[1][0,0], outputs[2][0,0]]
-            cv2.imwrite("1.png", img_square(watcher, 2, 6))
+            watcher =  [img_t0[0], gt, outputs_0[0][0,0], outputs_0[1][0,0], outputs_0[2][0,0]]
+            watcher += [img_t1[0], gt, outputs_1[0][0,0], outputs_1[1][0,0], outputs_1[2][0,0]]
+            cv2.imwrite("1.png", img_square(watcher, 2, 5))
         print("task has been finished.")
 
     return
