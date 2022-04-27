@@ -19,6 +19,8 @@ except:
     from otherblocks.blocks import CSP1_n, CBL
     from otherblocks.attention import CoordAttention
 
+#https://jishuin.proginn.com/p/763bfbd59ac5
+
 class FastGridPreDetector(nn.Module):
     def __init__(self):
         super().__init__()

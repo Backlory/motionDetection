@@ -12,7 +12,12 @@ from model.Homo import Homo_cnn, Homo_fc
 
 from algorithm.infer_VideoProcess import Inference_VideoProcess
 class Inference_Homo_RSHomoNet():
-    def __init__(self, args) -> None:
+    def __init__(self, args={
+        'ifUseGPU':True, 
+        'modelType':'weights',
+        'continueTaskExpPath':'weights',
+        'continueWeightsFile_weights':'model_Train_Homo_and_save_bs32_96.pkl'
+    }) -> None:
         self.args = args
         # 设备
         print(colorstr('Initializing device...', 'yellow'))

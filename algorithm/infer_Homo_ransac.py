@@ -65,12 +65,9 @@ def drawMatches(img1, kp1, img2, kp2, matches, inliers = None):
 
     return out
 
-#
-
 
 # Runs sift algorithm to find features
-def findFeatures(img):
-    orb = cv2.ORB_create()
+def findFeatures(img, orb):
     #orb = cv2.cornerHarris()
     keypoints, descriptors = orb.detectAndCompute(img, None)
     #temp = np.zeros_like(img)
@@ -163,8 +160,9 @@ def ransac(corr, thresh):
     return finalH, maxInliers
 
 class Inference_Homo_RANSAC():
-    def __init__(self, args) -> None:
+    def __init__(self, args={}) -> None:
         self.args = args
+        self.orb = cv2.ORB_create(nfeatures=200, nlevels=1, scaleFactor=1)  #取消金字塔抽取
         # 设备
         print(colorstr('Initializing device...', 'yellow'))
 
@@ -297,8 +295,8 @@ class Inference_Homo_RANSAC():
 
     def core(self, img_t0_gray, img_base_gray):
         try:
-            kp1, desc1 = findFeatures(img_t0_gray)
-            kp2, desc2 = findFeatures(img_base_gray)
+            kp1, desc1 = findFeatures(img_t0_gray, self.orb)
+            kp2, desc2 = findFeatures(img_base_gray, self.orb)
             keypoints = [kp1,kp2]
             tp, qp = [], []
             matches = matchFeatures(kp1, kp2, desc1, desc2, img_t0_gray, img_base_gray)
@@ -337,8 +335,8 @@ class Inference_Homo_RANSAC():
         for _ in range(300):
             # RANSAC方法
             correspondenceList = []
-            kp1, desc1 = findFeatures(img_t0_gray_resized)
-            kp2, desc2 = findFeatures(img_base_gray_resized)
+            kp1, desc1 = findFeatures(img_t0_gray_resized, self.orb)
+            kp2, desc2 = findFeatures(img_base_gray_resized, self.orb)
             keypoints = [kp1,kp2]
             matches = matchFeatures(kp1, kp2, desc1, desc2, img_t0_gray_resized, img_base_gray_resized)
             for match in matches:
