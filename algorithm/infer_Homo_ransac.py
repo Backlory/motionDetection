@@ -162,7 +162,7 @@ def ransac(corr, thresh):
 class Inference_Homo_RANSAC():
     def __init__(self, args={}) -> None:
         self.args = args
-        self.orb = cv2.ORB_create(nfeatures=200, nlevels=1, scaleFactor=1)  #取消金字塔抽取
+        self.orb = cv2.ORB_create(nfeatures=200, nlevels=1, scaleFactor=2)  #取消金字塔抽取
         # 设备
         print(colorstr('Initializing device...', 'yellow'))
 

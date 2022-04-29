@@ -144,6 +144,8 @@ class Inference_Homo_switcher():
                     effect = _effect
                     diffOrigin = _diffOrigin
                     diffWarp = _diffWarp
+                elif effect > _effect and effect > 0:
+                    print("恢复RANSAC输出。")
                 else:
                     print("检测到RSHomoNet故障，取消对齐输出")
                     img_t1_warp = img_t1
