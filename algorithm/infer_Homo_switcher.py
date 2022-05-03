@@ -60,7 +60,7 @@ class Inference_Homo_switcher():
             # ==============================================↓↓↓↓
             if True:
                 t = tic()
-                alg_type, img_t1_warp, diffOrigin_score, diffWarp_score, effect,  diffOrigin, diffWarp = self.__call__(img_t0, img_t1)
+                alg_type, img_t1_warp, diffOrigin_score, diffWarp_score, effect,  diffOrigin, diffWarp, H_warp = self.__call__(img_t0, img_t1)
                 t_use = toc(t)
                 # 原始图像，扭曲后图像，原始帧差值，扭曲后帧差值，是否工作，算法类型，时间消耗
                 #temp = [img_t0, img_t1, img_t1_warped, cv2.absdiff(img_t0, img_t1_warped), cv2.absdiff(img_t0, img_t1)]
@@ -144,6 +144,7 @@ class Inference_Homo_switcher():
                     effect = _effect
                     diffOrigin = _diffOrigin
                     diffWarp = _diffWarp
+                    H_warp = _H_warp
                 elif effect > _effect and effect > 0:
                     print("恢复RANSAC输出。")
                 else:
@@ -155,10 +156,11 @@ class Inference_Homo_switcher():
                     effect = 0
                     diffOrigin = diffWarp
                     diffWarp = diffWarp
+                    H_warp = np.eye(3)
             self.effect_list = np.append(self.effect_list, effect)
             self.effect_list = np.delete(self.effect_list, 0)
         print(f"alg_type={alg_type}, effect={effect:.5f}")
-        return alg_type, img_t1_warp, diffOrigin_score, diffWarp_score, effect,  diffOrigin, diffWarp
+        return alg_type, img_t1_warp, diffOrigin_score, diffWarp_score, effect,  diffOrigin, diffWarp, H_warp
 
     def frameDifferenceDetect(self, img_base, img_t1, img_t1_warp):
     
