@@ -7,7 +7,6 @@ import torch.nn.functional as F
 import torch.optim as optim
 import os
 import sys
-import numba
 
 from utils.img_display import img_square
 from utils.flow_viz import flow_to_image
@@ -15,32 +14,39 @@ from utils.flow_viz import flow_to_image
 from algorithm.infer_Homo_switcher import Inference_Homo_switcher
 
 #======================================================================
-def main():
+def main(video_idx):
     print("model...")
     infer_align = Inference_Homo_switcher()
 
     print("Processing...")
     if True:
-        video_idx=1
+        video_idx=video_idx
         step_frame = 1
         repeatTimes = 500   # 重复多少次
         len_all = len(os.listdir(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_{str(video_idx)}/video/"))
+        #len_all = len(os.listdir(r"E:\dataset\dataset-fg-det\UAC_IN_CITY\video3"))
+        
         #his_diffWarp_thres = None
         temp_rate = []
         for i in range(len_all * repeatTimes):
             i = i % (len_all-step_frame*2)
             img_t0 = cv2.imread(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_{str(video_idx)}/video/{str(i).zfill(3)}.png")
             img_t1 = cv2.imread(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_{str(video_idx)}/video/{str(i+step_frame).zfill(3)}.png")
+            #img_t0 = cv2.imread(f"E:\\dataset\\dataset-fg-det\\UAC_IN_CITY\\video3\\{str(i).zfill(5)}.jpg")
+            #img_t1 = cv2.imread(f"E:\\dataset\\dataset-fg-det\\UAC_IN_CITY\\video3\\{str(i+step_frame).zfill(5)}.jpg")
+            #img_t0 = cv2.resize(img_t0, (640, 640))
+            #img_t1 = cv2.resize(img_t1, (640, 640))
+            
             gt = cv2.imread(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_{str(video_idx)}/gt_mov/{str(i).zfill(3)}.png", cv2.IMREAD_GRAYSCALE) 
             _, gt = cv2.threshold(gt, 127, 255, cv2.THRESH_BINARY_INV)
             #img_t0 = img_t0[:,:,(200-37):(213+37*2), ( 200-50):(201+50*2)]
             #img_t1 = img_t1[:,:,(200-37):(213+37*2), ( 200-50):(201+50*2)]
             #gt =             gt[(200-37):(213+37*2), ( 200-50):(201+50*2)]
             
-            ##################################################################
+            #################################
             # 单应性变换
             alg_type, img_t1_warp, _, _, effect,  diffOrigin, diffWarp, H_warp = infer_align.__call__(img_t0, img_t1)
-            print(f"alg_type={alg_type}, effect={effect:.5f}")
+            print(i, f"alg_type={alg_type}, effect={effect:.5f}")
             # _, diffWarp_thres = cv2.threshold(diffWarp, 10, 255, cv2.THRESH_BINARY)
             # _, diffOrigin_thres = cv2.threshold(diffOrigin, 10, 255, cv2.THRESH_BINARY)            
             # diffWarp_thres = cv2.medianBlur(diffWarp_thres, 5)
@@ -50,6 +56,7 @@ def main():
             # cv2.imwrite(f"{i}.png", img_square(watcher, 2, 3))
             
             # 对齐变换带来的背景光流，从img_t1到img_t1_warp的
+            
             img_x = np.repeat(np.arange(640)[None], 640, 0)
             img_y = np.repeat(np.arange(640)[:,None], 640, 1)
             temp = ( H_warp - np.eye(3) )
@@ -158,7 +165,8 @@ def main():
                 
 
             temp_rate.append( diffWarp_thres_grid_mask1.mean() / 510  + diffWarp_thres_grid_mask2.mean()/510)
-                
+
+             
             #watcher = [img_t0, img_t1, img_t1_warp, gt, diffWarp_thres, diffWarp_thres_grid]
             diffWarp_thres_grid1 = cv2.add(img_t0, np.zeros(np.shape(img_t0), dtype=np.uint8), mask=diffWarp_thres_grid_mask1)
             diffWarp_thres_grid2 = cv2.add(img_t0, np.zeros(np.shape(img_t0), dtype=np.uint8), mask=diffWarp_thres_grid_mask2)
@@ -209,14 +217,16 @@ def main():
                     )
             
             watcher = [img_t0,  img_t1_warp, gt, diffWarp, diffWarp_thres, diffWarp_thres_grid1, diffWarp_thres_grid2, flow_img]
-            cv2.imwrite(f"1.png", img_square(watcher, 2, 4))
+            cv2.imwrite(f"{i}.png", img_square(watcher, 2, 4))
             pass
             #cv2.waitKey(100)
-
-        print(f"temp_rate = {np.mean(temp_rate)}:.5f")
+            
+        print(f"len_all = {len_all}, piexl = {len_all*640*640}, 屏蔽 = {(len_all*640*640) * (1 - np.mean(temp_rate))}")
+        print(f"temp_rate = {1 - np.mean(temp_rate):.5f}")
+        print(len_all, (len_all*640*640), int((len_all*640*640) * (1 - np.mean(temp_rate))), 1 - np.mean(temp_rate) )
         print("task has been finished.")
 
-    return
+    return len_all, (len_all*640*640), int((len_all*640*640) * (1 - np.mean(temp_rate))), 1 - np.mean(temp_rate)
 
 
 def droplittlearea(diffWarp_thres, thres_area = 9, thres_hmw=5, thres_k = 0.05):
@@ -237,4 +247,7 @@ def droplittlearea(diffWarp_thres, thres_area = 9, thres_hmw=5, thres_k = 0.05):
     return diffWarp_thres
 
 if __name__ == "__main__":
-    main()
+    #f = open("temp.txt", 'w')
+    #sys.stdout = f
+    main(i)
+    #f.close()
