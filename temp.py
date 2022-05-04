@@ -23,9 +23,11 @@ def main():
     if True:
         video_idx=1
         step_frame = 1
+        repeatTimes = 500   # 重复多少次
         len_all = len(os.listdir(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_{str(video_idx)}/video/"))
-        his_diffWarp_thres = None
-        for i in range(len_all * 500):
+        #his_diffWarp_thres = None
+        temp_rate = []
+        for i in range(len_all * repeatTimes):
             i = i % (len_all-step_frame*2)
             img_t0 = cv2.imread(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_{str(video_idx)}/video/{str(i).zfill(3)}.png")
             img_t1 = cv2.imread(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_{str(video_idx)}/video/{str(i+step_frame).zfill(3)}.png")
@@ -155,7 +157,8 @@ def main():
                         img_t0 = cv2.rectangle(img_t0, (x,y), (x+w,y+h), (0,0,255), 2)
                 
 
-
+            temp_rate.append( diffWarp_thres_grid_mask1.mean() / 510  + diffWarp_thres_grid_mask2.mean()/510)
+                
             #watcher = [img_t0, img_t1, img_t1_warp, gt, diffWarp_thres, diffWarp_thres_grid]
             diffWarp_thres_grid1 = cv2.add(img_t0, np.zeros(np.shape(img_t0), dtype=np.uint8), mask=diffWarp_thres_grid_mask1)
             diffWarp_thres_grid2 = cv2.add(img_t0, np.zeros(np.shape(img_t0), dtype=np.uint8), mask=diffWarp_thres_grid_mask2)
@@ -210,7 +213,7 @@ def main():
             pass
             #cv2.waitKey(100)
 
-        
+        print(f"temp_rate = {np.mean(temp_rate)}:.5f")
         print("task has been finished.")
 
     return
