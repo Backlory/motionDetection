@@ -176,14 +176,6 @@ class Inference_Homo_RANSAC():
         #
         tempVideoProcesser = Inference_VideoProcess(cap=cap,fps_target=fps_target)
         fps = tempVideoProcesser.fps_now
-        '''
-        cv2.namedWindow("test_origin",cv2.WINDOW_FREERATIO)
-        cv2.namedWindow("test_diff_origin",cv2.WINDOW_FREERATIO)
-        cv2.namedWindow("test_diff_warp",cv2.WINDOW_FREERATIO)
-        cv2.resizeWindow("test_origin", 512,512)
-        cv2.resizeWindow("test_diff_origin", 512,512)
-        cv2.resizeWindow("test_diff_warp", 512,512)
-        '''
         self.ss1,self.ss2 = [],[]
         self.effect_all = []
         t_use_all = []
@@ -250,13 +242,13 @@ class Inference_Homo_RANSAC():
         assert(w >= h)
         assert(h == 512)
         #
-        img_t0_gray_resized = cv2.cvtColor(img_t0, cv2.COLOR_BGR2GRAY)
-        img_base_gray_resized = cv2.cvtColor(img_base, cv2.COLOR_BGR2GRAY)
+        img_t0_gray = cv2.cvtColor(img_t0, cv2.COLOR_BGR2GRAY)
+        img_base_gray = cv2.cvtColor(img_base, cv2.COLOR_BGR2GRAY)
         
         # RANSAC方法
         correspondenceList = []
         t = tic()
-        H_warp = self.core(img_t0_gray_resized, img_base_gray_resized)
+        H_warp = self.core(img_t0_gray, img_base_gray)
         
         if False:
             for match in matches:
@@ -266,7 +258,7 @@ class Inference_Homo_RANSAC():
             corrs = np.matrix(correspondenceList)
             H_warp_0, inliers = ransac(corrs, 0.6)
             print ("Final inliers count: ", len(inliers))
-        #matchImg = drawMatches(img_t0_gray_resized,kp1,img_base_gray_resized,kp2,matches,inliers)
+        #matchImg = drawMatches(img_t0_gray,kp1,img_base_gray,kp2,matches,inliers)
         #cv2.imwrite('InlierMatches.png', matchImg)
         h, w, _ = img_t0.shape
         img_t0_warp = cv2.warpPerspective(img_t0, H_warp, (w, h))
@@ -326,8 +318,8 @@ class Inference_Homo_RANSAC():
         assert(w >= h)
         assert(h == 512)
         #
-        img_t0_gray_resized = cv2.cvtColor(img_t0, cv2.COLOR_BGR2GRAY)
-        img_base_gray_resized = cv2.cvtColor(img_base, cv2.COLOR_BGR2GRAY)
+        img_t0_gray = cv2.cvtColor(img_t0, cv2.COLOR_BGR2GRAY)
+        img_base_gray = cv2.cvtColor(img_base, cv2.COLOR_BGR2GRAY)
         
 
         t = tic()
@@ -335,10 +327,10 @@ class Inference_Homo_RANSAC():
         for _ in range(300):
             # RANSAC方法
             correspondenceList = []
-            kp1, desc1 = findFeatures(img_t0_gray_resized, self.orb)
-            kp2, desc2 = findFeatures(img_base_gray_resized, self.orb)
+            kp1, desc1 = findFeatures(img_t0_gray, self.orb)
+            kp2, desc2 = findFeatures(img_base_gray, self.orb)
             keypoints = [kp1,kp2]
-            matches = matchFeatures(kp1, kp2, desc1, desc2, img_t0_gray_resized, img_base_gray_resized)
+            matches = matchFeatures(kp1, kp2, desc1, desc2, img_t0_gray, img_base_gray)
             for match in matches:
                 (x1, y1) = keypoints[0][match.queryIdx].pt
                 (x2, y2) = keypoints[1][match.trainIdx].pt

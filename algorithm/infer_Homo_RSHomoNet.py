@@ -55,14 +55,6 @@ class Inference_Homo_RSHomoNet():
         #
         tempVideoProcesser = Inference_VideoProcess(cap=cap,fps_target=fps_target)
         fps = tempVideoProcesser.fps_now
-        '''
-        cv2.namedWindow("test_origin",cv2.WINDOW_FREERATIO)
-        cv2.namedWindow("test_diff_origin",cv2.WINDOW_FREERATIO)
-        cv2.namedWindow("test_diff_warp",cv2.WINDOW_FREERATIO)
-        cv2.resizeWindow("test_origin", 512,512)
-        cv2.resizeWindow("test_diff_origin", 512,512)
-        cv2.resizeWindow("test_diff_warp", 512,512)
-        '''
         self.ss1,self.ss2 = [],[]
         self.effect_all = []
         t_use_all = []
@@ -79,8 +71,6 @@ class Inference_Homo_RSHomoNet():
                 break
             # ==============================================↓↓↓↓
             #
-            #img_t1_warped = self._test_one_patch(img_t1, img_t0)
-            #img_t1_warped = self._test_patches(img_t1, img_t0)
             img_t0, img_t1_warped, diffOrigin, diffWarp, if_usefull, t_use = self.__call__(img_t1, img_t0, stride=stride, alpha=alpha)
             #temp = [img_t0, img_t1, img_t1_warped, cv2.absdiff(img_t0, img_t1_warped), cv2.absdiff(img_t0, img_t1)]
             #cv2.imwrite(f"{round(fps)}_{stride}.png", img_square(temp, 2,3))
@@ -167,7 +157,7 @@ class Inference_Homo_RSHomoNet():
         #delta = []
         #for i in range(stride):
         #    for j in range(stride):
-        #        features1 = self._get_fea(img_t0_gray_resized[i::stride, j::stride], img_base_gray_resized[i::stride, j::stride])
+        #        features1 = self._get_fea(img_t0_gray[i::stride, j::stride], img_base_gray[i::stride, j::stride])
         #        delta1 = self._get_output(features1)[0]
         #        delta.append(delta1)
         t = tic()
@@ -224,6 +214,7 @@ class Inference_Homo_RSHomoNet():
         h, w = img_t0_gray.shape
         img_t0_gray_resized = cv2.resize(img_t0_gray, (128 * stride, 128 * stride))
         img_base_gray_resized = cv2.resize(img_base_gray, (128 * stride, 128 * stride))
+        
         # 并行法
         patch_t0s = []
         patch_t1s = []
@@ -276,152 +267,6 @@ class Inference_Homo_RSHomoNet():
         H = cv2.getPerspectiveTransform(fp, pfp)
         return H
 
-    def _test_patches(self, img_t0, img_t1):
-        '''
-        t0向t1
-        '''
-        def _test_patches_get_point_motion_vector(self, features, p_tl=[0,0], size = 128) -> list: 
-            #输出模型在256*256下的标准输出
-            _, c, h, w = features.shape
-            assert(c == 128)
-            k = h/16    #应该为16，但现在却为h，故缩小了k倍
-            size_input = 256 * k
-            
-            p_tl_fea = int(p_tl[0] / size_input * h), int(p_tl[1] / size_input * w)
-            fea_patch = features[:, :, p_tl_fea[0]:p_tl_fea[0]+8, p_tl_fea[1]:p_tl_fea[1]+8]
-            
-            output = self.model_fc(fea_patch)
-            delta = output[0].detach().cpu().numpy()
-            delta = np.float32(delta * 8)
-            
-            size_origin = int(size / k)
-            fp = np.array([ p_tl,
-                            (p_tl[0]+size_origin, p_tl[1]),
-                            (p_tl[0]+size_origin, p_tl[1]+size_origin),
-                            (p_tl[0],      p_tl[1]+size_origin)], np.float32)
-            return fp, delta * k
-        assert(img_t0.shape == img_t1.shape)
-        assert(img_t0.shape[2] == 3)
-        h, w, _ = img_t0.shape
-        assert(w >= h)
-        assert(h == 512)
-        #
-        img_t0_gray = cv2.cvtColor(img_t0, cv2.COLOR_BGR2GRAY)
-        img_t1_gray = cv2.cvtColor(img_t1, cv2.COLOR_BGR2GRAY)
-        img_t0_gray = cv2.resize(img_t0_gray, (256, 256))
-        img_t1_gray = cv2.resize(img_t1_gray, (256, 256))
-        
-        # 特征提取
-        features = self._get_fea(img_t0_gray, img_t1_gray)   #1, 128, 16, 16
-        
-        _, _, h, w = features.shape
-        point_pair_ori = []
-        point_pair_mov = []
-        
-        for p_tl in [(0,0), (0, 128), (128, 128), (128, 0),(64,64)]:
-            fp, delta = _test_patches_get_point_motion_vector(self, features, p_tl, size = 128)
-            try:
-                point_pair_ori = np.concatenate([point_pair_ori, fp], axis = 0)
-                point_pair_mov = np.concatenate([point_pair_mov, delta], axis = 0)
-            except:
-                point_pair_ori = fp
-                point_pair_mov = delta
-        if True:
-            features = torch.nn.AdaptiveAvgPool2d(int(h/2))(features)   #128*128用的
-            fp, delta = _test_patches_get_point_motion_vector(self, features, (0,0), size = 128)
-            point_pair_ori = np.concatenate([point_pair_ori, fp], axis = 0)
-            point_pair_mov = np.concatenate([point_pair_mov, delta], axis = 0)
-        #
-        import matplotlib.pyplot as plt
-        ax = plt.gca()
-        ax.invert_yaxis()
-        for i in range(len(point_pair_ori)):
-            x,y = point_pair_ori[i]
-            u,v = point_pair_mov[i]
-            plt.quiver(x,y,u,v)
-        plt.show()
-        #
-        img_t0_warp = img_t0
-        return img_t0_warp
-
-    def _test_one_patch(self, img_t1, img_t0):
-        def _test_get_homo_128(self, patch_t0, patch_t1):
-            assert(patch_t0.shape == (128, 128, 1))
-            patch_t0 = torch.Tensor(patch_t0/255).float().permute(2,0,1)[None]    #hwc->chw
-            patch_t1 = torch.Tensor(patch_t1/255).float().permute(2,0,1)[None]
-            patch_t0 = patch_t0 * 2 - 1
-            patch_t1 = patch_t1 * 2 - 1
-            patch_t0 = patch_t0.to(self.device)
-            patch_t1 = patch_t1.to(self.device)
-            features = self.model_cnn(patch_t0, patch_t1)[4]
-            output = self.model_fc(features)
-            delta = output[0].detach().cpu().numpy()
-            
-            fp = np.array([ (32, 32),
-                            (160, 32),
-                            (160, 160),
-                            (32, 160)],
-                            dtype=np.float32)
-            pfp = np.float32(fp + delta * 8)
-
-            if False:
-                import matplotlib.pyplot as plt
-                ax = plt.gca()
-                ax.invert_yaxis()
-                for i in range(4):
-                    x,y = fp[i]
-                    u,v = pfp[i] - fp[i]
-                    plt.quiver(x,y,u,v)
-                plt.show()
-
-            H_warp = cv2.getPerspectiveTransform(fp, pfp)
-            H_warp_from_0 = cv2.getPerspectiveTransform(fp-32, pfp-32)
-            H2 = np.array([ 1, 0, -32,
-                            0, 1, -32,
-                            0, 0,   1 ]).reshape(3,3) #平移矩阵
-            H_warp_patch = np.matmul(np.matmul(H2, H_warp), np.linalg.inv(H2)) 
-            return H_warp_patch
-
-
-        assert(img_t0.shape == img_t1.shape)
-        assert(img_t0.shape[2] == 3)
-        h, w, _ = img_t0.shape
-        assert(w >= h)
-        assert(h == 512)
-        #
-        img_t0_gray = cv2.cvtColor(img_t0, cv2.COLOR_BGR2GRAY)
-        img_t1_gray = cv2.cvtColor(img_t1, cv2.COLOR_BGR2GRAY)
-        #
-        ps = 128 * 4
-        p_tl = (256-int(ps/2), int(w/2)-int(ps/2))
-        p_rb = (p_tl[0]+ps, p_tl[1]+ps)
-        #
-        patch_t0 = img_t0_gray[p_tl[0]:p_rb[0], p_tl[1]:p_rb[1]]
-        patch_t1 = img_t1_gray[p_tl[0]:p_rb[0], p_tl[1]:p_rb[1]]
-        patch_t0 = cv2.resize(patch_t0, (128,128))[:, :, np.newaxis]
-        patch_t1 = cv2.resize(patch_t1, (128,128))[:, :, np.newaxis]
-        
-        # 单个patch测试
-        H_warp_patch = _test_get_homo_128(self, patch_t0, patch_t1)
-        patch_t0_w = cv2.warpPerspective(patch_t0, H_warp_patch, (128,128))
-        h,w,_ = patch_t0.shape
-        patch_t0 = patch_t0[int(h*0.05):int(h*0.95), int(w*0.05):int(w*0.95),:]
-        patch_t1 = patch_t1[int(h*0.05):int(h*0.95), int(w*0.05):int(w*0.95),:]
-        patch_t0_w = patch_t0_w[int(h*0.05):int(h*0.95), int(w*0.05):int(w*0.95)]
-        cv2.imwrite("0.png", img_t0_gray)
-        cv2.imwrite("1.png", patch_t0)
-        cv2.imwrite("2.png", patch_t1)
-        temp = img_square([patch_t0, patch_t1, patch_t0_w, cv2.absdiff(patch_t1, patch_t0_w), cv2.absdiff(patch_t1, patch_t0)], 1,5)
-        cv2.imwrite("3.png", temp)
-        cv2.imshow("123",temp)
-        cv2.waitKey(0)
-        print(np.sum(cv2.absdiff(patch_t1, patch_t0_w)), np.sum(cv2.absdiff(patch_t1, patch_t0)))
-        self.ss1 += np.sum(cv2.absdiff(patch_t1, patch_t0_w))
-        self.ss2 += np.sum(cv2.absdiff(patch_t1, patch_t0))
-        print(self.ss1, self.ss2)
-        return img_t0
-
-
     def time_test(self, stride=4):
         print("==============")
         print(f"run time testing wiht stride = {stride}")
@@ -459,7 +304,7 @@ class Inference_Homo_RSHomoNet():
                     delta1 = self._get_output(features1)[0]
                     delta.append(delta1)
         print(np.array(delta).shape, delta[0])
-        toc(t, "inference * 16", 300, False)
+        toc(t, f"串行inference{stride**2}", 300, False)
 
         t = tic()
         for _ in range(300):
@@ -475,7 +320,8 @@ class Inference_Homo_RSHomoNet():
             features1 = self._get_feas_batch(patch_t0s, patch_t1s)
             delta = self._get_output(features1)
         print(np.array(delta).shape, delta[0])
-        toc(t, "inference * 16", 300, False)
+        toc(t, f"并行inference{stride**2}", 300, False)
+        
         for idx, img in enumerate(patch_t0s):
             cv2.imwrite(f"s={stride}_{idx}.png", img[0])
             

@@ -74,7 +74,7 @@ class Inference_VideoProcess():
         if self.flagTranspose:
             img_t1 = np.transpose(img_t1, [1,0,2])
         # resize
-        img_t1 = cv2.resize(img_t1, (self.w_target, self.h_target),interpolation=cv2.INTER_NEAREST)
+        #img_t1 = cv2.resize(img_t1, (self.w_target, self.h_target),interpolation=cv2.INTER_NEAREST)
         return img_t1
 
     def postProcess(self, img_t0):
