@@ -1,3 +1,5 @@
+raise DeprecationWarning("this model has been deprecated!")
+
 import cv2
 import numpy as np
 import torch

@@ -48,21 +48,23 @@ class Inference_VideoProcess():
     
     def __call__(self):
         # time passes
-        self.img_t0 = self.img_t1
+        self.img_t0 = np.array(self.img_t1, copy=True)
 
         # read new frame
         for _ in range(self.skip_frame+1):
-            _, img_t1 = self.cap.read()
-        if img_t1 is None:
-            #print("no frame left.")
+            _, self.img_t1 = self.cap.read()
+        if self.img_t1 is None:    
             return None, None
-        while img_t1 == self.img_t0:#不让它俩相等
-            _, img_t1 = self.cap.read()
+        self.img_t1 = self.preProcess(self.img_t1)
 
+        # 恒等检查
+        while (self.img_t1 == self.img_t0).all():#不让它俩相等
+            _, self.img_t1 = self.cap.read()
+            if self.img_t1 is None:    
+                return None, None
+            self.img_t1 = self.preProcess(self.img_t1)
         
-        # preProcess
-        self.img_t1 = self.preProcess(img_t1)
-
+        
         # assert
         assert(self.img_t0.shape == self.img_t1.shape)
         return self.img_t0, self.img_t1
@@ -72,7 +74,7 @@ class Inference_VideoProcess():
         if self.flagTranspose:
             img_t1 = np.transpose(img_t1, [1,0,2])
         # resize
-        img_t1 = cv2.resize(img_t1, (self.w_target, self.h_target))
+        img_t1 = cv2.resize(img_t1, (self.w_target, self.h_target),interpolation=cv2.INTER_NEAREST)
         return img_t1
 
     def postProcess(self, img_t0):

@@ -131,7 +131,7 @@ class Inference_Homo_switcher():
         # 对齐容错控制器（被动容错控制思路）
         if True: 
             threshold = np.average(self.effect_list) * self.frameDifferenceDetector_threshold_alpha   #帧差突变阈值
-            if effect < threshold or effect < 0:
+            if effect < threshold or effect <= 0:
                 print("检测到RANSAC故障，切换至RSHomoNet模型")
                 _H_warp = self.infer_rshomonet.core(img_t1_gray, img_base_gray, stride=2)
                 _img_t1_warp = cv2.warpPerspective(img_t1, _H_warp, (w, h))
@@ -159,7 +159,6 @@ class Inference_Homo_switcher():
                     H_warp = np.eye(3)
             self.effect_list = np.append(self.effect_list, effect)
             self.effect_list = np.delete(self.effect_list, 0)
-        print(f"alg_type={alg_type}, effect={effect:.5f}")
         return alg_type, img_t1_warp, diffOrigin_score, diffWarp_score, effect,  diffOrigin, diffWarp, H_warp
 
     def frameDifferenceDetect(self, img_base, img_t1, img_t1_warp):

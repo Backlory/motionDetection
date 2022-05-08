@@ -46,4 +46,12 @@ def get_conf(taskerName = "tasker"):
         arg['lr_init'] = 0.00001
         arg['iterations'] = -1
         arg['epoches'] = 300
+
+    if "Inference_Region_Proposal" in taskerName:
+        arg['modelType'] = 'weights' #weights, script
+        arg['continueTaskExpPath'] = "weights"
+        arg['continueWeightsFile_weights'] = "model_Train_Homo_and_save_bs32_96.pkl"
+        arg['taskerName'] = "Tester_Homo"
+
+
     return arg

@@ -1,6 +1,5 @@
 
 
-from tasker.train_FastGridPreDetector import Train_FastGridPreDetector_and_save
 
 from utils.conf import get_conf
 import datetime
@@ -68,8 +67,18 @@ if __name__ == "__main__":
                 Infer.run_test(fps, ds)
         exit(0)
 
+    if True:
+        from algorithm.infer_Region_Proposal import Inference_Region_Proposal
+        log('!!!!!!!!!!!!!!!!!!!!!!!运动区域分割!!!!!!!!!!!!!!!!!!!!\n')
+        args = get_conf('Inference_Region_Proposal')
+        #args['datasetLenTrick'] = 10
+        Tasker = Inference_Region_Proposal(args=args)
+        Tasker.run_test(dataset = 'j')
+        exit(0)
+
         
     if True:
+        from tasker.train_FastGridPreDetector import Train_FastGridPreDetector_and_save
         log('!!!!!!!!!!!!!!!!!!!!!!!运动区域分割!!!!!!!!!!!!!!!!!!!!\n')
         args = get_conf('Train_FastGridPreDetector_and_save')
         #args['datasetLenTrick'] = 10
