@@ -47,23 +47,23 @@ class Inference_Region_Proposal():
             if img_t0 is None:
                 print("all frame have been read.")
                 break
-            
+            t = tic()
             alg_type, img_t1_warp, _, _, effect,  diffOrigin, diffWarp, H_warp = self.infer_align.__call__(img_t0, img_t1)
             h_img_t1, w_img_t1, _ = img_t1.shape
             
             # 对齐变换带来的背景光流，从img_t1到img_t1_warp的
+            flow_img = None
             #flow_img = self.getflowmap(H_warp, h_img_t1, w_img_t1)
 
             #运动区域候选
-            t = tic()
-            tensors_input, tensors_t1, moving_mask, img_t0_boxed = self.__call__(img_t0, img_t1_warp, diffWarp)
+            moving_mask = self.__call__(img_t0, img_t1_warp, diffWarp)
             t_use = toc(t)
             
             # ==============================================↓↓↓↓
             
-            if False: #转grid
-                gridlength = 8
-                h_gridlength = 4
+            if True: #转grid
+                gridlength = 16
+                h_gridlength = 8
                 moving_mask_grid = torch.tensor(moving_mask)[None, None].float()
                 moving_mask_grid_mask1 = nn.MaxPool2d(gridlength)(moving_mask_grid)
                 moving_mask_grid_mask1 = moving_mask_grid_mask1[0,0].numpy().astype(np.uint8)
@@ -131,7 +131,7 @@ class Inference_Region_Proposal():
                         )
                 temp_rate_1 = moving_mask_grid_mask1.mean() / 510  + moving_mask_grid_mask2.mean()/510
                 temp_rate.append( temp_rate_1 )
-                watcher = [img_t0_boxed,  img_t1_warp, None, diffWarp, moving_mask, moving_mask_grid1, moving_mask_grid2, flow_img]
+                watcher = [img_t0,  img_t1_warp, None, diffWarp, moving_mask, moving_mask_grid1, moving_mask_grid2, flow_img]
                 watcher = img_square(watcher, 2, 4)
             else:
                 temp_rate_1 = 0
@@ -141,7 +141,7 @@ class Inference_Region_Proposal():
             # ==============================================↑↑↑↑
             t_use_all.append(t_use)
             print(f'\r== frame {idx} ==> rate={effect}, PR_rate={temp_rate_1:.5f}, time={t_use}ms, alg_type={alg_type}',  end="")
-            cv2.imwrite(f"1.png", watcher)
+            cv2.imwrite(f"temp/3/{idx}.png", watcher)
             pass
             
             
@@ -182,11 +182,11 @@ class Inference_Region_Proposal():
         t = tic()
         _, diffWarp_thres = cv2.threshold(diffWarp, 10, 255, cv2.THRESH_BINARY)
         diffWarp_thres = cv2.medianBlur(diffWarp_thres, 3)
-        toc(t, "midbluer+", 1, mute=False);t = tic()
+        #toc(t, "midbluer+", 1, mute=False);t = tic()
         
-        #structs = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7,7))
-        #diffWarp_thres = cv2.dilate(diffWarp_thres, structs)
-        #diffWarp_thres = cv2.erode(diffWarp_thres, structs)
+        structs = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3,3))
+        diffWarp_thres = cv2.erode(diffWarp_thres, structs)
+        diffWarp_thres = cv2.dilate(diffWarp_thres, structs)
         
         #structs = cv2.getStructuringElement(cv2.MORPH_CROSS, (5,5))
         #diffWarp_thres = cv2.erode(diffWarp_thres, structs)
@@ -194,71 +194,73 @@ class Inference_Region_Proposal():
         t = tic()
         temp = diffWarp_thres
         diffWarp_thres = self.droplittlearea(diffWarp_thres, thres_area=self.smallobj_size_thres)
-        toc(t, "dif1", 1, mute=False);t = tic()
+        #toc(t, "dif1", 1, mute=False);t = tic()
         
         diffWarp_thres = 255 - diffWarp_thres
         diffWarp_thres = self.droplittlearea(diffWarp_thres, thres_area=10000)
         moving_mask = 255 - diffWarp_thres
-        toc(t, "dif2", 1, mute=False);t = tic()
+        #toc(t, "dif2", 1, mute=False);t = tic()
         
-        tensors_input = []
-        tensors_t1 = []
-        
-        # 区域边界框判断
-        _, contours, hierarchy = cv2.findContours(moving_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        bbox = []
-        for c in contours:
-            x,y,w,h = cv2.boundingRect(c)
-            if w < ps and h < ps:
-                y = y + h//2 - h_ps
-                x = x + w//2 - h_ps
-                h, w = ps, ps
-            bbox.append([x,y,w,h])  # 此时，bbox中可能有超出范围的数字
-        bbox = np.array(bbox)
-        toc(t, "bbox", 1, mute=False);t = tic()
-        
-        
-        img_base_boxed = np.array(img_base, copy=True)
-        if bbox.size > 0:
-            # NMI 非极大值抑制
-            bbox = self.NMI(thresh_IOU, bbox)
-            toc(t, "NMI", 1, mute=False);t = tic()
-
-
-            if False:       # 扩张过滤
-                w_padding = np.max(bbox[:, 2])
-                h_padding = np.max(bbox[:, 3])
-                w_padding = max(w_padding, ps)
-                h_padding = max(h_padding, ps)
-                img_base = cv2.copyMakeBorder(img_base, h_padding, h_padding, w_padding, w_padding,
-                                                cv2.BORDER_CONSTANT, value=0)
-                img_warped = cv2.copyMakeBorder(img_warped, h_padding, h_padding, w_padding, w_padding,
-                                                cv2.BORDER_CONSTANT, value=0) 
-                for bbox_item in bbox:
-                    x,y,w,h = bbox_item
-                    print(w, h)
-                    if w < ps and h < ps:
-                        y = y + h//2 - h_ps
-                        x = x + w//2 - h_ps
-                        h, w = ps, ps
-                    x = x + w_padding
-                    y = y + h_padding
-                    temp = np.array(img_base[y:y+h, x:x+w, :], copy=True)
-                    temp2 = np.array(img_warped[y-h:y+2*h, x-w:x+2*w, :], copy=True)
-                    #temp = cv2.resize(temp, (ps, ps), interpolation=cv2.INTER_AREA)
-                    #temp2 = cv2.resize(temp2, (ps*3, ps*3), interpolation=cv2.INTER_AREA)
-                    #cv2.imwrite("1.png", temp)
-                    #cv2.imwrite("1.png", temp2)
-                
-        else:
-            bbox = []
-
-        #画bbox
-        for bbox_item in bbox:
-            x,y,w,h = bbox_item
-            img_base_boxed = cv2.rectangle(img_base_boxed, (x,y), (x+w,y+h), (0,0,255), 2)
+        if False:
+            tensors_input = []
+            tensors_t1 = []
             
-        return tensors_input, tensors_t1, moving_mask, img_base_boxed
+            # 区域边界框判断
+            _, contours, hierarchy = cv2.findContours(moving_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            bbox = []
+            for c in contours:
+                x,y,w,h = cv2.boundingRect(c)
+                if w < ps and h < ps:
+                    y = y + h//2 - h_ps
+                    x = x + w//2 - h_ps
+                    h, w = ps, ps
+                bbox.append([x,y,w,h])  # 此时，bbox中可能有超出范围的数字
+            bbox = np.array(bbox)
+            toc(t, "bbox", 1, mute=False);t = tic()
+            
+            
+            img_base_boxed = np.array(img_base, copy=True)
+            if bbox.size > 0:
+                # NMI 非极大值抑制
+                if False:       # 扩张过滤
+                    bbox = self.NMI(thresh_IOU, bbox)
+                    toc(t, "NMI", 1, mute=False);t = tic()
+
+
+                if False:       # 扩张过滤
+                    w_padding = np.max(bbox[:, 2])
+                    h_padding = np.max(bbox[:, 3])
+                    w_padding = max(w_padding, ps)
+                    h_padding = max(h_padding, ps)
+                    img_base = cv2.copyMakeBorder(img_base, h_padding, h_padding, w_padding, w_padding,
+                                                    cv2.BORDER_CONSTANT, value=0)
+                    img_warped = cv2.copyMakeBorder(img_warped, h_padding, h_padding, w_padding, w_padding,
+                                                    cv2.BORDER_CONSTANT, value=0) 
+                    for bbox_item in bbox:
+                        x,y,w,h = bbox_item
+                        print(w, h)
+                        if w < ps and h < ps:
+                            y = y + h//2 - h_ps
+                            x = x + w//2 - h_ps
+                            h, w = ps, ps
+                        x = x + w_padding
+                        y = y + h_padding
+                        temp = np.array(img_base[y:y+h, x:x+w, :], copy=True)
+                        temp2 = np.array(img_warped[y-h:y+2*h, x-w:x+2*w, :], copy=True)
+                        #temp = cv2.resize(temp, (ps, ps), interpolation=cv2.INTER_AREA)
+                        #temp2 = cv2.resize(temp2, (ps*3, ps*3), interpolation=cv2.INTER_AREA)
+                        #cv2.imwrite("1.png", temp)
+                        #cv2.imwrite("1.png", temp2)
+                    
+            else:
+                bbox = []
+
+            #画bbox
+            for bbox_item in bbox:
+                x,y,w,h = bbox_item
+                img_base_boxed = cv2.rectangle(img_base_boxed, (x,y), (x+w,y+h), (0,0,255), 2)
+                
+        return moving_mask
 
     def NMI(self, thresh_IOU, bbox):
         x1 = bbox[:, 0]
