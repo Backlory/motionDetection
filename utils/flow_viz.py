@@ -130,3 +130,15 @@ def flow_to_image(flow_uv, clip_flow=None, convert_to_bgr=False):
     u = u / (rad_max + epsilon)
     v = v / (rad_max + epsilon)
     return flow_uv_to_colors(u, v, convert_to_bgr)
+
+if __name__ == "__main__":
+    length = 400
+    x = np.linspace(-20, 20, length)
+    y = np.linspace(-20, 20, length)
+    map = np.meshgrid(x, y)
+    map = np.array(map).transpose(1,2,0)    #[:,:,0]为水平运动矢量
+    
+    temp = flow_to_image(map)
+    import cv2
+    cv2.imwrite("flow_board.png", temp)
+    

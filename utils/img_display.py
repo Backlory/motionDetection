@@ -72,7 +72,6 @@ def show_pic(data,windowname = 'default',showtype='freeze'):
         data = img_square(data)
     #
     cv2.namedWindow(windowname,0)
-    cv2.resizeWindow(windowname, 640, 480)
     cv2.imshow(windowname, data)
 
     if showtype=='freeze':

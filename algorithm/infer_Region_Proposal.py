@@ -85,47 +85,47 @@ class Inference_Region_Proposal():
                 moving_mask_grid1 = cv2.add(img_t0, np.zeros(np.shape(img_t0), dtype=np.uint8), mask=moving_mask_grid_mask1)
                 moving_mask_grid2 = cv2.add(img_t0, np.zeros(np.shape(img_t0), dtype=np.uint8), mask=moving_mask_grid_mask2)
                 
-                for i in range(640 // gridlength):
+                for i in range(h_img_t1 // gridlength):
                     moving_mask_grid1 = cv2.line(
                         moving_mask_grid1, 
                         (gridlength*i, 0), 
-                        (gridlength*i, 640), 
+                        (gridlength*i, h_img_t1), 
                         (0,50,0),
                         thickness=1
                         )
                     moving_mask_grid1 = cv2.line(
                         moving_mask_grid1, 
                         (0, gridlength*i), 
-                        (640, gridlength*i), 
+                        (w_img_t1, gridlength*i), 
                         (0,50,0), 
                         thickness=1
                         )
                     moving_mask_grid2 = cv2.line(
                         moving_mask_grid2, 
                         (gridlength*i, 0), 
-                        (gridlength*i, 640), 
+                        (gridlength*i, h_img_t1), 
                         (0,50,0),
                         thickness=1
                         )
                     moving_mask_grid2 = cv2.line(
                         moving_mask_grid2, 
                         (0, gridlength*i), 
-                        (640, gridlength*i), 
+                        (w_img_t1, gridlength*i), 
                         (0,50,0), 
                         thickness=1
                         )
-                for i in range(640 // gridlength):
+                for i in range(w_img_t1 // gridlength):
                     moving_mask_grid2 = cv2.line(
                         moving_mask_grid2,
                         (gridlength*i+h_gridlength, 0), 
-                        (gridlength*i+h_gridlength, 640), 
+                        (gridlength*i+h_gridlength, h_img_t1), 
                         (0,0,100), 
                         thickness=2
                         )
                     moving_mask_grid2 = cv2.line(
                         moving_mask_grid2, 
                         (0, gridlength*i+h_gridlength), 
-                        (640, gridlength*i+h_gridlength), 
+                        (w_img_t1, gridlength*i+h_gridlength), 
                         (0,0,100), 
                         thickness=2
                         )

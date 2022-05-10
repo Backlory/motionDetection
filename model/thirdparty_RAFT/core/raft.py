@@ -3,10 +3,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from core.update import BasicUpdateBlock, SmallUpdateBlock
-from core.extractor import BasicEncoder, SmallEncoder
-from core.corr import CorrBlock, AlternateCorrBlock
-from core.utils.utils import bilinear_sampler, coords_grid, upflow8
+from model.thirdparty_RAFT.core.update import BasicUpdateBlock, SmallUpdateBlock
+from model.thirdparty_RAFT.core.extractor import BasicEncoder, SmallEncoder
+from model.thirdparty_RAFT.core.corr import CorrBlock, AlternateCorrBlock
+from model.thirdparty_RAFT.core.utils.utils import bilinear_sampler, coords_grid, upflow8
 
 try:
     autocast = torch.cuda.amp.autocast
@@ -75,10 +75,10 @@ class RAFT(nn.Module):
         mask = mask.view(N, 1, 9, 8, 8, H, W) #每个像素点及其周围一圈共计9个像素点，扩展成8*8个像素点，故权重共有9*8*8*n*c*h*w个
         mask = torch.softmax(mask, dim=2)
 
-        up_flow = F.unfold(8 * flow, [3,3], padding=1)
+        up_flow = F.unfold(8 * flow, [3,3], padding=1)  #乘以上采样倍数
         up_flow = up_flow.view(N, 2, 9, 1, 1, H, W)
 
-        up_flow = torch.sum(mask * up_flow, dim=2)
+        up_flow = torch.sum(mask * up_flow, dim=2) 
         up_flow = up_flow.permute(0, 1, 4, 2, 5, 3)
         return up_flow.reshape(N, 2, 8*H, 8*W)
 
@@ -130,6 +130,7 @@ class RAFT(nn.Module):
             coords1 = coords1 + delta_flow
 
             # upsample predictions
+            #up_mask = None
             if up_mask is None:
                 flow_up = upflow8(coords1 - coords0)
             else:

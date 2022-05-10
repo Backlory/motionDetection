@@ -15,7 +15,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 from torch.utils.data import DataLoader
-from core.raft import RAFT
+from model.thirdparty_RAFT.core.raft import RAFT
 import evaluate
 import core.datasets as datasets
 
