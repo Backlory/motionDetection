@@ -1,3 +1,4 @@
+from math import ceil
 import numpy as np
 import torch
 import cv2
@@ -100,7 +101,7 @@ def _check_ifnhwc(imgs):
     return 1
 
 
-def img_square(imgs, h_number = -1, w_number = -1, big_or_small='biggest'):
+def img_square(imgs:list, h_number = -1, w_number = -1, big_or_small='biggest'):
     '''
     1、将所给图片列表中所有图片都转成nhw3,支持(n1hw, nhw1, n3hw, nhw, 2hw)
     2、大小统一到最大图片大小
@@ -125,6 +126,21 @@ def img_square(imgs, h_number = -1, w_number = -1, big_or_small='biggest'):
     img = img_square(patches_pred, 0, 0)
     img = img_square(patches_pred, 2, 5)
     '''
+    # 确定行列
+    num = len(imgs)
+    if w_number * h_number < 0:
+        if h_number != -1:#选定行数
+            w_number = ceil(num/h_number)
+        elif w_number != -1:#选定列数
+            h_number = ceil(num/w_number)
+    elif w_number * h_number > 0:
+        if h_number < 0 and w_number < 0:#默认正方形
+            h_number = ceil(num**0.5)
+            w_number = h_number
+    if h_number*w_number-num > 0:
+        imgs = imgs + [None] * (h_number*w_number-num)
+    
+    #
     if isinstance(imgs, list):
         #如果有torch，转成numpy
         imgs = [x[0] if type(x) is torch.Tensor and len(x.shape) == 4 else x for x in imgs ]
@@ -177,19 +193,6 @@ def img_square(imgs, h_number = -1, w_number = -1, big_or_small='biggest'):
     _check_ifnhwc(imgs)
     #
     num, height, width, chan = imgs.shape
-    if h_number == -1 and w_number == -1:#默认正方形
-        h_number = int(num**0.5)
-        w_number = int(num**0.5)
-    elif h_number != -1 and w_number != -1:#选定行列数
-        if h_number * w_number > num:
-            temp = np.zeros_like(imgs[0:1,:,:,:])
-            imgs = np.concatenate([imgs]+[temp] * (h_number*w_number-num), axis=0)
-        else:
-            pass
-    elif h_number != -1:#选定行数
-        w_number = min(int(num/h_number), 10)
-    elif w_number != -1:#选定列数
-        h_number = min(int(num/w_number), 10)
     img_out_mat = np.zeros((h_number * height, w_number * width, chan),
                             dtype = imgs.dtype)
     #
