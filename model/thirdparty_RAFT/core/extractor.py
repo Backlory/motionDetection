@@ -265,3 +265,78 @@ class SmallEncoder(nn.Module):
             x = torch.split(x, [batch_dim, batch_dim], dim=0)
 
         return x
+
+
+
+# ============================================
+
+'''
+class MaskBasicEncoder(BasicEncoder):
+    def __init__(self, output_dim=128, norm_fn='batch', dropout=0):
+        super().__init__(output_dim, norm_fn, dropout)
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=0)
+        
+        if self.norm_fn == 'group':
+            self.norm1 = nn.GroupNorm(num_groups=8, num_channels=64)
+            
+        elif self.norm_fn == 'batch':
+            self.norm1 = nn.BatchNorm2d(64)
+
+        elif self.norm_fn == 'instance':
+            self.norm1 = MaskInstanceNorm2d(64)
+
+        elif self.norm_fn == 'none':
+            self.norm1 = nn.Sequential()
+
+    
+    def _make_layer(self, dim, stride=1):
+        layer1 = MaskResidualBlock(self.in_planes, dim, self.norm_fn, stride=stride)
+        layer2 = MaskResidualBlock(dim, dim, self.norm_fn, stride=1)
+        layers = (layer1, layer2)
+        
+        self.in_planes = dim
+        return nn.Sequential(*layers)
+
+
+class MaskResidualBlock(ResidualBlock):
+    def __init__(self, in_planes, planes, norm_fn='group', stride=1):
+        super().__init__(in_planes, planes, norm_fn, stride)
+
+        
+        if norm_fn == 'group':
+            self.norm1 = nn.GroupNorm(num_groups=num_groups, num_channels=planes)
+            self.norm2 = nn.GroupNorm(num_groups=num_groups, num_channels=planes)
+            if not stride == 1:
+                self.norm3 = nn.GroupNorm(num_groups=num_groups, num_channels=planes)
+        
+        elif norm_fn == 'batch':
+            self.norm1 = nn.BatchNorm2d(planes)
+            self.norm2 = nn.BatchNorm2d(planes)
+            if not stride == 1:
+                self.norm3 = nn.BatchNorm2d(planes)
+        
+        elif norm_fn == 'instance':
+        self.norm1 = MaskInstanceNorm2d(planes)
+        self.norm2 = MaskInstanceNorm2d(planes)
+        if not stride == 1:
+            self.norm3 = MaskInstanceNorm2d(planes)
+
+        elif norm_fn == 'none':
+            self.norm1 = nn.Sequential()
+            self.norm2 = nn.Sequential()
+            if not stride == 1:
+                self.norm3 = nn.Sequential()
+
+
+class MaskInstanceNorm2d(nn.InstanceNorm2d):
+    def __init__(self, num_features: int, eps: float = 0.00001, momentum: float = 0.1, affine: bool = False, track_running_stats: bool = False) -> None:
+        super().__init__(num_features, eps, momentum, affine, track_running_stats)
+        self.norm1 = nn.InstanceNorm2d(num_features)
+
+    def forward(self, x):
+        n,c,h,w = x.shape
+        x = x.permute([1,2,3,0]).contiguous().view(1,c,h,w*n)   #先把n转到w上，因为instanceNorm在所有图像的同一个通道操作
+        x = self.norm1(x)
+        x = x[0].view(c,h,w,n).permute([3,0,1,2]).contiguous()
+        return x
+'''

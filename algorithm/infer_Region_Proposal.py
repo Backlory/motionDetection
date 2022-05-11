@@ -166,9 +166,10 @@ class Inference_Region_Proposal():
         return flow_img
 
 
-    def __call__(self, img_base, img_warped, diffWarp, thresh_IOU = 0.7):
+    def __call__(self, img_base, img_warped, diffWarp, history = None):
         '''
-        挑选运动区域
+        挑选运动区域.
+        history代表上一帧的检测结果，用于增强本帧。
         '''
         assert(img_base.shape == img_warped.shape)
         assert(img_base.shape[2] == 3)
@@ -223,7 +224,7 @@ class Inference_Region_Proposal():
             if bbox.size > 0:
                 # NMI 非极大值抑制
                 if False:       # 扩张过滤
-                    bbox = self.NMI(thresh_IOU, bbox)
+                    bbox = self.NMI(0.7, bbox)
                     toc(t, "NMI", 1, mute=False);t = tic()
 
 
