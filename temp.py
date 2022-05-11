@@ -34,8 +34,7 @@ def main(video_idx):
         len_all = len(os.listdir(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_{str(video_idx)}/video/"))
         #len_all = len(os.listdir(r"E:\dataset\dataset-fg-det\UAC_IN_CITY\video3"))
         gridLength = 32     #边长
-        gridEdgeNum = 20    #每个边上的网格数
-        model = Mask_RAFT(gridLength, gridEdgeNum)
+        model = Mask_RAFT(gridLength)
         model.cuda()
         model.eval()
         

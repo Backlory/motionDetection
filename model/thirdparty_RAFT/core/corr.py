@@ -95,19 +95,25 @@ class MaskCorrBlock:
         self.num_levels = num_levels
         self.radius = radius
         self.corr_pyramid = []
-
+        #self.Mask_pyramid = []
+        #self.Mask = Mask
+        
         # all pairs correlation
         corr = CorrBlock.corr(fmap1, fmap2)
-
         batch, h1, w1, dim, h2, w2 = corr.shape
         corr = corr.reshape(batch*h1*w1, dim, h2, w2)
-        corr = corr * F.interpolate(Mask, (h2, w2), mode="nearest")
+        corr = corr * Mask
+        
+        self.gridLength = h1 // Mask.shape[2]   #4，这里是3次下采样后的
         
         self.corr_pyramid.append(corr)
+        #self.Mask_pyramid.append(Mask)
         for i in range(self.num_levels-1):
             corr = F.avg_pool2d(corr, 2, stride=2)
+            #Mask = F.avg_pool2d(Mask, 2, stride=2)
             self.corr_pyramid.append(corr)
-
+            #self.Mask_pyramid.append(Mask)
+        
     def __call__(self, coords):
         r = self.radius
         coords = coords.permute(0, 2, 3, 1)
@@ -119,11 +125,10 @@ class MaskCorrBlock:
             dx = torch.linspace(-r, r, 2*r+1, device=coords.device) #一个网格，记录了一个方形区域内每个点相对中心的偏移量
             dy = torch.linspace(-r, r, 2*r+1, device=coords.device)
             delta = torch.stack(torch.meshgrid(dy, dx), axis=-1)
-
+            
             centroid_lvl = coords.reshape(batch*h1*w1, 1, 1, 2) / 2**i  #索引值随下采样倍数而降低
             delta_lvl = delta.view(1, 2*r+1, 2*r+1, 2)
             coords_lvl = centroid_lvl + delta_lvl   # 广播运算，[4096, 1, 1, 2]的索引区，加[1, 9, 9, 2]代表每个点都要取9*9=81个子向量
-
             corr = bilinear_sampler(corr, coords_lvl)   #根据coords_lvl，对corr矩阵做双线性采样，得到的采样结果替换corr
             corr = corr.view(batch, h1, w1, -1)
             out_pyramid.append(corr)
