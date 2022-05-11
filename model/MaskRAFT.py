@@ -97,13 +97,12 @@ class Mask_RAFT(RAFT):
         
         for itr in range(iters):
             coords1 = coords1.detach()
-            coords1 = (1-Mask_interp)*coords0 + Mask_interp*coords1
             corr = corr_fn(coords1) # index correlation volume
-
             flow = coords1 - coords0
+            
             with autocast(enabled=self.args.mixed_precision):
                 net, up_mask, delta_flow = self.update_block(net, inp, corr, flow)
-
+            delta_flow = delta_flow * Mask_interp
             coords1 = coords1 + delta_flow
 
         toc(tp, "iters", mute=False); tp = tic()

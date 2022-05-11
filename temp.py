@@ -30,7 +30,7 @@ def main(video_idx):
     if True:
         video_idx=video_idx
         step_frame = 1
-        repeatTimes = 500   # 重复多少次
+        repeatTimes = 1   # 重复多少次
         len_all = len(os.listdir(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_{str(video_idx)}/video/"))
         #len_all = len(os.listdir(r"E:\dataset\dataset-fg-det\UAC_IN_CITY\video3"))
         gridLength = 32     #边长
@@ -89,7 +89,7 @@ def main(video_idx):
                 toc(tp, "img转tensor", mute=False); tp = tic()
                 
                 with torch.no_grad():
-                    flow_low, flow_up, coords0, coords1 = model(image1, image2, Mask=moving_mask, iters=20, test_mode=True, flow_init = last_flow)
+                    flow_low, flow_up, coords0, coords1 = model(image1, image2, Mask=moving_mask, iters=10, test_mode=True, flow_init = last_flow)
                 last_flow = flow_low.detach()
                 toc(tp, "RAFT", mute=False); tp = tic()
                 
@@ -128,5 +128,6 @@ def add_mask(img, mask):
 
 
 if __name__ == "__main__":
-    main(1)
+    for i in range(40):
+        main(i)
     
