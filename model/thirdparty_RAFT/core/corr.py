@@ -91,28 +91,26 @@ class AlternateCorrBlock:
         return corr / torch.sqrt(torch.tensor(dim).float())
 
 class MaskCorrBlock:
-    def __init__(self, fmap1, fmap2, num_levels=4, radius=4, Mask=None):
+    def __init__(self, fmap1, fmap2, num_levels=4, radius=4, Masks=[None, None]):
         self.num_levels = num_levels
         self.radius = radius
         self.corr_pyramid = []
-        #self.Mask_pyramid = []
-        #self.Mask = Mask
+        
+        # Mask
+        Mask_big, Mask_big_2 = Masks
+        fmap1 = fmap1 * Mask_big
+        fmap2 = fmap2 * Mask_big_2
         
         # all pairs correlation
         corr = CorrBlock.corr(fmap1, fmap2)
-        batch, h1, w1, dim, h2, w2 = corr.shape
+        batch, h1, w1, dim, h2, w2 = corr.shape #h1 w1代表原图中位置，h2w2代表t1时刻
         corr = corr.reshape(batch*h1*w1, dim, h2, w2)
-        corr = corr * Mask
-        
-        self.gridLength = h1 // Mask.shape[2]   #4，这里是3次下采样后的
+        #corr = corr * Mask_big
         
         self.corr_pyramid.append(corr)
-        #self.Mask_pyramid.append(Mask)
         for i in range(self.num_levels-1):
             corr = F.avg_pool2d(corr, 2, stride=2)
-            #Mask = F.avg_pool2d(Mask, 2, stride=2)
             self.corr_pyramid.append(corr)
-            #self.Mask_pyramid.append(Mask)
         
     def __call__(self, coords):
         r = self.radius
@@ -140,7 +138,7 @@ class MaskCorrBlock:
     def corr(fmap1, fmap2):
         batch, dim, ht, wd = fmap1.shape
         fmap1 = fmap1.view(batch, dim, ht*wd)
-        fmap2 = fmap2.view(batch, dim, ht*wd) 
+        fmap2 = fmap2.view(batch, dim, ht*wd)
         
         corr = torch.matmul(fmap1.transpose(1,2), fmap2)
         corr = corr.view(batch, ht, wd, 1, ht, wd)

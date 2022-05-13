@@ -54,37 +54,37 @@ class Mask_RAFT(RAFT):
 
         self.gridLength = gridLength // 8    #因为三次下采样
 
-    def forward(self, image1, image2, Mask, iters=12, flow_init=None, upsample=True, test_mode=False):
+    def forward(self, image1, image2, Masks=[None, None], iters=12, flow_init=None, upsample=True, test_mode=False):
         """ Estimate optical flow between pair of frames """
         assert(len(image1) == 1)
         assert(len(image2) == 1)
         #tp = tic()
         image1 = 2 * (image1 / 255.0) - 1.0
         image2 = 2 * (image2 / 255.0) - 1.0
-        Mask = Mask / 255.0
+        Mask_small, Mask_small_2 = Masks
+        Mask_small = Mask_small / 255.0
+        Mask_small_2 = Mask_small_2 / 255.0
         
         image1 = image1.contiguous()
         image2 = image2.contiguous()
 
         hdim = self.hidden_dim
         cdim = self.context_dim
-        
-        # run the feature network
+        # Mask
         with autocast(enabled=self.args.mixed_precision):
             fmap1 = self.fnet(image1)          #h/w各下降1/8，通道256  
             fmap2 = self.fnet(image2)          #h/w各下降1/8，通道256  
         fmap1 = fmap1.float()
         fmap2 = fmap2.float()
-        n,c,h,w = fmap1.shape
-
+        Mask_big = F.interpolate(Mask_small, fmap1.shape[2:4], mode="nearest")
+        Mask_big_2 = F.interpolate(Mask_small_2, fmap1.shape[2:4], mode="nearest")
+        Masks = [Mask_big, Mask_big_2]
         # 计算corr
-        Mask_interp = F.interpolate(Mask, (h, w), mode="nearest")
-        corr_fn = MaskCorrBlock(fmap1, fmap2, radius=self.args.corr_radius, Mask=Mask_interp)
+        corr_fn = MaskCorrBlock(fmap1, fmap2, radius=self.args.corr_radius, Masks=Masks)
         
         # run the context network
         with autocast(enabled=self.args.mixed_precision):
             cnet = self.cnet(image1)    #上下文网络。只对patch用
-            cnet = cnet * Mask_interp
             net, inp = torch.split(cnet, [hdim, cdim], dim=1)
             net = torch.tanh(net)   #正面进，初始状态   [1, 128, 64, 64])
             inp = torch.relu(inp)   #侧面进
@@ -99,11 +99,11 @@ class Mask_RAFT(RAFT):
             coords1 = coords1.detach()
             corr = corr_fn(coords1) # index correlation volume
             flow = coords1 - coords0
-            
+
             with autocast(enabled=self.args.mixed_precision):
                 net, up_mask, delta_flow = self.update_block(net, inp, corr, flow)
-            delta_flow = delta_flow * Mask_interp
             coords1 = coords1 + delta_flow
+            coords1 = Mask_big * coords1 + (1-Mask_big)*coords0
 
         toc(tp, "iters", mute=False); tp = tic()
         
