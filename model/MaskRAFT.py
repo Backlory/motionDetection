@@ -61,26 +61,36 @@ class Mask_RAFT(RAFT):
         #tp = tic()
         image1 = 2 * (image1 / 255.0) - 1.0
         image2 = 2 * (image2 / 255.0) - 1.0
-        Mask_small, Mask_small_2 = Masks
-        Mask_small = Mask_small / 255.0
-        Mask_small_2 = Mask_small_2 / 255.0
         
         image1 = image1.contiguous()
         image2 = image2.contiguous()
 
         hdim = self.hidden_dim
         cdim = self.context_dim
-        # Mask
+        gL = self.gridLength
+        
         with autocast(enabled=self.args.mixed_precision):
             fmap1 = self.fnet(image1)          #h/w各下降1/8，通道256  
             fmap2 = self.fnet(image2)          #h/w各下降1/8，通道256  
         fmap1 = fmap1.float()
         fmap2 = fmap2.float()
+        
+        # Mask
+        Mask_small, Mask_small_2 = Masks
+        Mask_small = Mask_small / 255.0
+        Mask_small_2 = Mask_small_2 / 255.0
         Mask_big = F.interpolate(Mask_small, fmap1.shape[2:4], mode="nearest")
         Mask_big_2 = F.interpolate(Mask_small_2, fmap1.shape[2:4], mode="nearest")
         Masks = [Mask_big, Mask_big_2]
+        _, _, h1, w1 = fmap1.shape
+        h_num = h1 // gL
+        w_num = w1 // gL
+        
         # 计算corr
-        corr_fn = MaskCorrBlock(fmap1, fmap2, radius=self.args.corr_radius, Masks=Masks)
+        corr_fn = MaskCorrBlock(fmap1, fmap2, 
+                                radius=self.args.corr_radius, 
+                                Masks=Masks,
+                                gridLength=gL )
         
         # run the context network
         with autocast(enabled=self.args.mixed_precision):
@@ -89,29 +99,41 @@ class Mask_RAFT(RAFT):
             net = torch.tanh(net)   #正面进，初始状态   [1, 128, 64, 64])
             inp = torch.relu(inp)   #侧面进
 
+        # 光流初始化
         coords0, coords1 = self.initialize_flow(image1) #某点的原始坐标， 某点运动后的坐标，尺寸为[n,2,h//8,w//8]
         if flow_init is not None:
             coords1 = coords1 + flow_init
+        coords0 = coords0.reshape([2, h_num, gL, w_num, gL])
+        coords0 = coords0.permute([1,3,0,2,4])
+        coords1 = coords1.reshape([2, h_num, gL, w_num, gL])
+        coords1 = coords1.permute([1,3,0,2,4])  #h_num, w_num, 2, h, w
         #toc(tp, "iters init", mute=False); 
-        tp = tic()
         
+        tp = tic()
+        up_mask = torch.zeros([h_num, w_num, 576,gL,gL], device=coords0.device)
         for itr in range(iters):
             coords1 = coords1.detach()
             corr = corr_fn(coords1) # index correlation volume
             flow = coords1 - coords0
-
-            with autocast(enabled=self.args.mixed_precision):
-                net, up_mask, delta_flow = self.update_block(net, inp, corr, flow)
-            coords1 = coords1 + delta_flow
-            coords1 = Mask_big * coords1 + (1-Mask_big)*coords0
+            for i in range(h_num):
+                for j in range(w_num):
+                    if Mask_small[0,0,i,j]>0:
+                        net_p = net[:,:,i*gL:i*gL+gL, j*gL:j*gL+gL]
+                        inp_p = inp[:,:,i*gL:i*gL+gL, j*gL:j*gL+gL]
+                        corr_p = corr[i,j]
+                        flow_p = flow[i,j].view(1, 2, gL, gL)
+                        with autocast(enabled=self.args.mixed_precision):
+                            net_p, up_mask_p, delta_flow_p = self.update_block(net_p, inp_p, corr_p, flow_p)
+                        coords1[i,j] += delta_flow_p[0]
+                        up_mask[i,j] = up_mask_p[0]
+            #coords1 = Mask_big * coords1 + (1-Mask_big)*coords0
 
         toc(tp, "iters", mute=False); tp = tic()
         
-        # upsample predictions
-        if up_mask is None:
-            flow_up = upflow8(coords1 - coords0)
-        else:
-            flow_up = self.upsample_flow(coords1 - coords0, up_mask)
+        coords1 = coords1.permute([2,0,3,1,4]).contiguous().view(1,2,h1,w1)
+        coords0 = coords0.permute([2,0,3,1,4]).contiguous().view(1,2,h1,w1)
+        up_mask = up_mask.permute([2,0,3,1,4]).contiguous().view(1,576,h1,w1)
+        flow_up = self.upsample_flow(coords1 - coords0, up_mask)
         #toc(tp, "upsample_flow", mute=False); tp = tic()
         
 
