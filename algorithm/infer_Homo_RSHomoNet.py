@@ -20,14 +20,14 @@ class Inference_Homo_RSHomoNet():
     }) -> None:
         self.args = args
         # 设备
-        print(colorstr('Initializing device...', 'yellow'))
+        print(colorstr('Initializing device for rshomonet...', 'yellow'))
         if self.args['ifUseGPU']:
             self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  
         else:
             self.device = torch.device('cpu')
 
         # 模型
-        print(colorstr('Initializing model...', 'yellow'))
+        print(colorstr('Initializing model for rshomonet...', 'yellow'))
         if self.args['modelType'] == 'weights':
             self.model_cnn = Homo_cnn()
             self.model_fc = Homo_fc()

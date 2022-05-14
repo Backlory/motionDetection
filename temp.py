@@ -55,6 +55,7 @@ def main(video_idx):
                 tp = tic()
                 # 对齐
                 alg_type, img_t1_warp, _, _, effect,  diffOrigin, diffWarp, H_warp = infer_align.__call__(img_t0, img_t1)
+                #alg_type, img_t1_warp, effect,diffWarp = 
                 print();toc(tp, "对齐", mute=False); tp = tic()
                 # 区域候选
                 moving_mask = infer_RP.__call__(img_t0, img_t1_warp, diffWarp)

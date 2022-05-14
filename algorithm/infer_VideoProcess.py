@@ -68,6 +68,11 @@ class Inference_VideoProcess():
         # assert
         assert(self.img_t0.shape == self.img_t1.shape)
         return self.img_t0, self.img_t1
+    
+    def set_frame_now(self, frame_idx):
+        self.cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+        tempall = self.cap.get(cv2.CAP_PROP_FRAME_COUNT)
+        print(f"step into {frame_idx} / {tempall}({frame_idx/tempall*100:.4f}%)")
 
     def preProcess(self, img_t1):
         # transpose

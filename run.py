@@ -67,7 +67,7 @@ if __name__ == "__main__":
                 Infer.run_test(fps, ds)
         exit(0)
 
-    if True:
+    if False:
         from algorithm.infer_Region_Proposal import Inference_Region_Proposal
         log('!!!!!!!!!!!!!!!!!!!!!!!运动区域分割!!!!!!!!!!!!!!!!!!!!\n')
         args = get_conf('Inference_Region_Proposal')
@@ -76,6 +76,13 @@ if __name__ == "__main__":
         Tasker.run_test(dataset = 'j')
         exit(0)
 
+    if True:
+        from algorithm.infer_OpticalFlow import Inference_OpticalFlow
+        log('!!!!!!!!!!!!!!!!!!!!!!!光流提取!!!!!!!!!!!!!!!!!!!!\n')
+        args = get_conf('Inference_OpticalFlow')
+        Tasker = Inference_OpticalFlow(args=args)
+        Tasker.run_test(dataset = 'j')
+        exit(0)
         
     if True:
         from tasker.train_FastGridPreDetector import Train_FastGridPreDetector_and_save
@@ -85,4 +92,5 @@ if __name__ == "__main__":
         Tasker = Train_FastGridPreDetector_and_save(args)
         Tasker.run()
         exit(0)
+
     

@@ -21,11 +21,12 @@ class Inference_Region_Proposal():
     def __init__(self, smallobj_size_thres:int=70, args={}) -> None:
         self.args = args
         self.smallobj_size_thres = smallobj_size_thres
-        self.infer_align = Inference_Homo_switcher()
 
 
     def run_test(self, fps_target=30, dataset = 'u'):
         print("==============")
+        self.infer_align = Inference_Homo_switcher(self.args)
+
         if dataset == 'u':
             path = r"E:\dataset\dataset-fg-det\UAC_IN_CITY\video_all_1.mp4"
         elif dataset == 'j':

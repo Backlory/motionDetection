@@ -24,13 +24,19 @@ except:
 
 
 class Mask_RAFT(RAFT):
-    def __init__(self, gridLength = 32):
+    def __init__(self, gridLength = 32, args = {
+        "RAFT_model":"model/thirdparty_RAFT/model/raft-sintel.pth",
+        "RAFT_path":r"E:\dataset\dataset-fg-det\Janus_UAV_Dataset\Train\video_1\video",
+        "RAFT_small":"store_true",
+        "RAFT_mixed_precision":"store_false",
+        "RAFT_alternate_corr":"store_true"
+        }):
         parser = argparse.ArgumentParser()
-        parser.add_argument('--model',default="model/thirdparty_RAFT/model/raft-sintel.pth", help="restore checkpoint")  #things
-        parser.add_argument('--path', default=r"E:\dataset\dataset-fg-det\Janus_UAV_Dataset\Train\video_1\video", help="dataset for evaluation")
-        parser.add_argument('--small', action='store_true', help='use small model')
-        parser.add_argument('--mixed_precision', action='store_false', help='use mixed precision')
-        parser.add_argument('--alternate_corr', action='store_true', help='use efficent correlation implementation')
+        parser.add_argument('--model',default=args["RAFT_model"], help="restore checkpoint")  #things
+        parser.add_argument('--path', default=args["RAFT_path"], help="dataset for evaluation")
+        parser.add_argument('--small', action=args["RAFT_small"], help='use small model')
+        parser.add_argument('--mixed_precision', action=args["RAFT_mixed_precision"], help='use mixed precision')
+        parser.add_argument('--alternate_corr', action=args["RAFT_alternate_corr"], help='use efficent correlation implementation')
         args = parser.parse_args()
         
         super().__init__(args)
@@ -44,6 +50,7 @@ class Mask_RAFT(RAFT):
         status = torch.load(args.model)
         status = {k[7:]:v for k,v in status.items()}
         self.load_state_dict(status)
+        print("weights have been loaded for MASK-RAFT...")
 
         #self.Maskfnet = MaskBasicEncoder(output_dim=256, norm_fn='instance', dropout=args.dropout)
         #self.Maskfnet.load_state_dict(self.fnet.state_dict())
@@ -85,6 +92,8 @@ class Mask_RAFT(RAFT):
         _, _, h1, w1 = fmap1.shape
         h_num = h1 // gL
         w_num = w1 // gL
+        fmap1 = fmap1 * Mask_big
+        fmap2 = fmap2 * Mask_big_2
         
         # 计算corr
         corr_fn = MaskCorrBlock(fmap1, fmap2, 
@@ -95,6 +104,7 @@ class Mask_RAFT(RAFT):
         # run the context network
         with autocast(enabled=self.args.mixed_precision):
             cnet = self.cnet(image1)    #上下文网络。只对patch用
+            cnet = cnet * Mask_big
             net, inp = torch.split(cnet, [hdim, cdim], dim=1)
             net = torch.tanh(net)   #正面进，初始状态   [1, 128, 64, 64])
             inp = torch.relu(inp)   #侧面进
@@ -103,36 +113,30 @@ class Mask_RAFT(RAFT):
         coords0, coords1 = self.initialize_flow(image1) #某点的原始坐标， 某点运动后的坐标，尺寸为[n,2,h//8,w//8]
         if flow_init is not None:
             coords1 = coords1 + flow_init
-        coords0 = coords0.reshape([2, h_num, gL, w_num, gL])
-        coords0 = coords0.permute([1,3,0,2,4])
-        coords1 = coords1.reshape([2, h_num, gL, w_num, gL])
-        coords1 = coords1.permute([1,3,0,2,4])  #h_num, w_num, 2, h, w
+        
         #toc(tp, "iters init", mute=False); 
         
         tp = tic()
         up_mask = torch.zeros([h_num, w_num, 576,gL,gL], device=coords0.device)
         for itr in range(iters):
-            coords1 = coords1.detach()
-            corr = corr_fn(coords1) # index correlation volume
-            flow = coords1 - coords0
-            for i in range(h_num):
-                for j in range(w_num):
-                    if Mask_small[0,0,i,j]>0:
-                        net_p = net[:,:,i*gL:i*gL+gL, j*gL:j*gL+gL]
-                        inp_p = inp[:,:,i*gL:i*gL+gL, j*gL:j*gL+gL]
-                        corr_p = corr[i,j]
-                        flow_p = flow[i,j].view(1, 2, gL, gL)
-                        with autocast(enabled=self.args.mixed_precision):
-                            net_p, up_mask_p, delta_flow_p = self.update_block(net_p, inp_p, corr_p, flow_p)
-                        coords1[i,j] += delta_flow_p[0]
-                        up_mask[i,j] = up_mask_p[0]
-            #coords1 = Mask_big * coords1 + (1-Mask_big)*coords0
+            
+            corr = corr_fn.__call_mask__(coords1) # [20, 20, 1, 324, 4, 4]
+            
+            #coords1 = coords1.reshape([2, h_num, gL, w_num, gL]).permute([1,3,0,2,4])
+            #corr = corr_fn(coords1) # [20, 20, 1, 324, 4, 4]
+            #coords1 = coords1.permute([2,0,3,1,4]).contiguous().view(1,2,h1,w1)
+            #corr = corr.permute([2,3,0,4,1,5]).contiguous().view(1,324,h1,w1)
+            
+            
 
+            flow = coords1 - coords0
+            with autocast(enabled=self.args.mixed_precision):
+                net, up_mask, delta_flow = self.update_block(net, inp, corr, flow)
+            coords1 += delta_flow
+            coords1 = Mask_big * coords1 + (1-Mask_big) * coords0
+        
         toc(tp, "iters", mute=False); tp = tic()
         
-        coords1 = coords1.permute([2,0,3,1,4]).contiguous().view(1,2,h1,w1)
-        coords0 = coords0.permute([2,0,3,1,4]).contiguous().view(1,2,h1,w1)
-        up_mask = up_mask.permute([2,0,3,1,4]).contiguous().view(1,576,h1,w1)
         flow_up = self.upsample_flow(coords1 - coords0, up_mask)
         #toc(tp, "upsample_flow", mute=False); tp = tic()
         
