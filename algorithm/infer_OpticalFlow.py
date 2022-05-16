@@ -107,6 +107,7 @@ class Inference_OpticalFlow():
             temp = cv2.resize(temp, (640,640),cv2.INTER_AREA)
             #cv2.imwrite(f"1.png", temp)
             cv2.imwrite(f"temp/4/{idx}.png", temp)
+            #cv2.imwrite(f"temp/{dataset}/{idx}.png", temp)
             pass
             
             

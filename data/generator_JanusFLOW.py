@@ -30,15 +30,13 @@ def main(video_idx):
     if True:
         video_idx=video_idx
         step_frame = 1
-        repeatTimes = 1   # 重复多少次
         len_all = len(os.listdir(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_{str(video_idx)}/video/"))
         #len_all = len(os.listdir(r"E:\dataset\dataset-fg-det\UAC_IN_CITY\video3"))
         
         last_flow = None
         temp_rate = []
         with torch.no_grad():
-            for i in range(len_all * repeatTimes):
-                i = i % (len_all-step_frame*2)
+            for i in range(198, len_all-step_frame):
                 img_t0 = cv2.imread(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_{str(video_idx)}/video/{str(i).zfill(3)}.png")
                 img_t1 = cv2.imread(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_{str(video_idx)}/video/{str(i+step_frame).zfill(3)}.png")
                 
@@ -81,6 +79,14 @@ def main(video_idx):
                     pass
                 flotendir = f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_{str(video_idx)}/flow_ten/{str(i).zfill(3)}.flo"
                 torch.save(flo_ten.half().cpu(), flotendir)
+                
+                try:
+                    os.mkdir(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_{str(video_idx)}/fea_ten")
+                except:
+                    pass
+                flotendir = f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_{str(video_idx)}/fea_ten/{str(i).zfill(3)}.flo"
+                torch.save(fmap1_ten.half().cpu(), flotendir)
+                
                 print(f'\r== frame {i} ==> rate={effect}, 运动区比例={temp_rate_1:.5f}, time={t_use}ms, alg_type={alg_type}',  end="")
                 pass
                 #cv2.waitKey(100)
