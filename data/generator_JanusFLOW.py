@@ -68,13 +68,19 @@ def main(video_idx):
                 watcher = [img_t0, img_t1_warp, moving_mask, flo]
                 #cv2.imwrite("1.png", img_square(watcher, 2))
                 
-                os.mkdir(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_{str(video_idx)}/flow")
+                try:
+                    os.mkdir(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_{str(video_idx)}/flow")
+                except:
+                    pass
                 flodir = f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_{str(video_idx)}/flow/{str(i).zfill(3)}.png"
                 cv2.imwrite(flodir, flo)
                 
-                os.mkdir(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_{str(video_idx)}/flow_ten")
+                try:
+                    os.mkdir(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_{str(video_idx)}/flow_ten")
+                except:
+                    pass
                 flotendir = f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_{str(video_idx)}/flow_ten/{str(i).zfill(3)}.flo"
-                torch.save(flo_ten, flotendir)
+                torch.save(flo_ten.half().cpu(), flotendir)
                 print(f'\r== frame {i} ==> rate={effect}, 运动区比例={temp_rate_1:.5f}, time={t_use}ms, alg_type={alg_type}',  end="")
                 pass
                 #cv2.waitKey(100)
@@ -85,7 +91,8 @@ def add_mask(img, mask):
                 
 
 
-if __name__ == "__main__":
-    for i in range(1, 40):
+if __name__ == "__main__" or __name__ == "data.generator_JanusFLOW":
+    print("run data.generator_JanusFLOW...")
+    for i in range(1, 48):
         main(i)
     
