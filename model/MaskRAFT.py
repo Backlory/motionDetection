@@ -135,13 +135,13 @@ class Mask_RAFT(RAFT):
             coords1 += delta_flow
             coords1 = Mask_big * coords1 + (1-Mask_big) * coords0
         
-        toc(tp, "iters", mute=False); tp = tic()
+        #toc(tp, "iters", mute=False); tp = tic()
         
         flow_up = self.upsample_flow(coords1 - coords0, up_mask)
         #toc(tp, "upsample_flow", mute=False); tp = tic()
         
 
-        return coords1 - coords0, flow_up, coords0, coords1 
+        return coords1 - coords0, flow_up, coords0, coords1, fmap1
 
         # fmap1_patches = []
         # fmap2_patches = []
