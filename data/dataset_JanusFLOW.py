@@ -26,9 +26,10 @@ def getall_label_train(datasetpath:str):
     path_tri = os.path.join(datasetpath, "Train")
     data, metadata = [], []
     for videoname in os.listdir(path_tri):  # video: 'video_1'
-        frames = sorted(os.listdir(os.path.join(path_tri, videoname, "gt_mov")))
+        frames = sorted(os.listdir(os.path.join(path_tri, videoname, "flow_ten")))
         for idx in range(len(frames)):
-            data.append(os.path.join(path_tri, videoname, 'gt_mov', frames[idx]))
+            temp = os.path.join(path_tri, videoname, 'gt_mov', frames[idx][0:3]+".png")
+            data.append(temp)
             metadata.append(videoname)
     return data, metadata
 
