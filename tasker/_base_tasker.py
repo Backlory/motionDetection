@@ -11,6 +11,7 @@ import sys
 class Logger(object):
     def __init__(self, filename='default.log', stream=sys.stdout):
         self.terminal = stream
+        self.filename = filename
         self.log = open(filename, 'a')
     def write(self, message):
         self.terminal.write(message)
@@ -31,6 +32,10 @@ class Logger(object):
         self.log.close()
     def flush(self):
         pass
+    def refresh(self):
+        self.log.close()
+        self.log = open(self.filename, 'a')
+
 
 
 class _Tasker_base():

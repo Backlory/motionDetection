@@ -1,4 +1,5 @@
 import random
+import os, sys
 from tqdm import trange
 import cv2
 import numpy as np
@@ -160,13 +161,21 @@ class Train_MDHead_and_save(_Tasker_base):
             #
             ######## validate
             print("validating..")
-            self.valid(epoch)
+            if ((epoch + 1) % max(self.epoches//5, 1) == 0):
+                self.valid(epoch, True)
+            else:
+                self.valid(epoch)
+
+            try:
+                sys.stdout.refresh()
+            except:
+                pass
             
             epoch += 1
         temp = self.get_weight_save_dir(epoch)
         self.args['continue_states_path'] = temp
 
-    def valid(self, epoch=0):
+    def valid(self, epoch=0, confuse_coculate = False):
         ValidLoader = self.ValidLoader
         self.model.eval()
         loss_list = []
@@ -190,7 +199,8 @@ class Train_MDHead_and_save(_Tasker_base):
                 loss = self.criterion(outputs, targets)[0]
                 loss_list.append(loss.item())
 
-                self.evaluator.add_batch(outputs, targets)
+                if confuse_coculate:
+                    self.evaluator.add_batch(outputs, targets)
                 #每个epoch保存10次图片
                 if (i+1) % (max(len(ValidLoader) // 10, 1)) == 0: 
                     if i < len(ValidLoader) // 10 * 10:
@@ -209,10 +219,11 @@ class Train_MDHead_and_save(_Tasker_base):
         print("\n========")
         print(f'Epoch[{epoch+1}/{self.epoches}][{i}/{len(ValidLoader)}]\t avg_loss: {temp_l:.4f}')
         
-        mIoU, FWIoU, Acc, mAcc, mPre, mRecall, mF1, AuC = self.evaluator.evaluateAll()
-        print(self.evaluator.confusion_matrix)
-        print(f"mIoU={mIoU:.4f}, FWIoU={FWIoU:.4f}, Acc={Acc:.4f}, mAcc={mAcc:.4f}")
-        print(f"mPre={mPre:.4f}, mRecall={mRecall:.4f}, mF1={mF1:.4f}, AuC={AuC:.4f}")
+        if confuse_coculate:
+            mIoU, FWIoU, Acc, mAcc, mPre, mRecall, mF1, AuC = self.evaluator.evaluateAll()
+            print(self.evaluator.confusion_matrix)
+            print(f"mIoU={mIoU:.4f}, FWIoU={FWIoU:.4f}, Acc={Acc:.4f}, mAcc={mAcc:.4f}")
+            print(f"mPre={mPre:.4f}, mRecall={mRecall:.4f}, mF1={mF1:.4f}, AuC={AuC:.4f}")
 
         self.logger.add_scalar('valid_loss_avg', 
                                 np.mean(loss_list), 
