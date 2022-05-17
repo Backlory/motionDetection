@@ -24,7 +24,7 @@ class Logger(object):
         if message[0] == "\033":
             message = message[5:-4]
 
-        if message != "\n":
+        if message != "\n" and message.strip() != "":
             message = "["+ datetime.datetime.now().strftime(r'%Y-%m-%d-%H:%M:%S') + "]: " +  message + "\n"
             self.log.write(message)
     def __del__(self):
