@@ -44,13 +44,13 @@ class Train_MDHead_and_save(_Tasker_base):
         self.TrainLoader = DataLoader(Dataset_train, 
                                 self.batchSize,
                                 num_workers=self.args['numWorkers'],
-                                drop_last=False, 
+                                drop_last=True, 
                                 pin_memory=True)
         Dataset_valid = Dataset_generater.generate('valid')
         self.ValidLoader = DataLoader(Dataset_valid, 
                                 self.batchSize,
                                 num_workers=self.args['numWorkers'],
-                                drop_last=False, 
+                                drop_last=True, 
                                 pin_memory=True)
         
         #优化器
@@ -190,7 +190,7 @@ class Train_MDHead_and_save(_Tasker_base):
                 loss = self.criterion(outputs, targets)[0]
                 loss_list.append(loss.item())
 
-                #self.evaluator.add_batch(outputs[0], targets[0])
+                self.evaluator.add_batch(outputs, targets)
                 #每个epoch保存10次图片
                 if (i+1) % (max(len(ValidLoader) // 10, 1)) == 0: 
                     print(f"{i+1}/{len(ValidLoader)}...")
@@ -206,11 +206,10 @@ class Train_MDHead_and_save(_Tasker_base):
         print("\n========")
         print(f'Epoch[{epoch+1}/{self.epoches}][{i}/{len(ValidLoader)}]\t avg_loss: {temp_l:.4f}')
         
-        #    mIoU, FWIoU, Acc, mAcc, mPre, mRecall, mF1, AuC = self.evaluator.evaluateAll()
-        #    print(f"Evaluator at scale = {80/(2**idx)}:")
-        #    print(self.evaluator.confusion_matrix)
-        #    print(f"mIoU={mIoU:.4f}, FWIoU={FWIoU:.4f}, Acc={Acc:.4f}, mAcc={mAcc:.4f}")
-        #    print(f"mPre={mPre:.4f}, mRecall={mRecall:.4f}, mF1={mF1:.4f}, AuC={AuC:.4f}")
+        mIoU, FWIoU, Acc, mAcc, mPre, mRecall, mF1, AuC = self.evaluator.evaluateAll()
+        print(self.evaluator.confusion_matrix)
+        print(f"mIoU={mIoU:.4f}, FWIoU={FWIoU:.4f}, Acc={Acc:.4f}, mAcc={mAcc:.4f}")
+        print(f"mPre={mPre:.4f}, mRecall={mRecall:.4f}, mF1={mF1:.4f}, AuC={AuC:.4f}")
 
         self.logger.add_scalar('valid_loss_avg', 
                                 np.mean(loss_list), 
