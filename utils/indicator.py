@@ -64,11 +64,20 @@ class Evaluator(object):
         n = len(gt_image)
         confusion_matrix = np.zeros([self.num_class, self.num_class])
         
-        gt_image = torch.argmax(gt_image, 1).view(-1)   # n, h, w -> nhw
-        preds = torch.argmax(pre_image, 1).view(-1)   # 
+        preds = torch.argmax(pre_image, 1)   # 
+        gt_image = torch.argmax(gt_image, 1)   # n,c,h,w-> n,h,w，计算每个点的归属
         
-        for p, t in zip(preds, gt_image):
-            confusion_matrix[p, t] += 1
+        p1t1 = (preds * gt_image).sum()
+        p1t0 = (preds * (1 - gt_image)).sum()
+        p0t1 = ((1 - preds) * gt_image).sum()
+        p0t0 = ((1 - preds) * (1 - gt_image)).sum()
+
+        confusion_matrix[0,0] = p0t0.item()
+        confusion_matrix[0,1] = p0t1.item()
+        confusion_matrix[1,0] = p1t0.item()
+        confusion_matrix[1,1] = p1t1.item()
+        #for p, t in zip(preds, gt_image):
+        #    confusion_matrix[p, t] += 1
         return confusion_matrix
 
     def add_batch(self, pre_image, gt_image):

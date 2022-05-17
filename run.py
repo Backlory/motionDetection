@@ -96,7 +96,7 @@ if __name__ == "__main__":
 
     if True:
         from tasker.train_MDHead import Train_MDHead_and_save
-        log('!!!!!!!!!!!!!!!!!!!!!!!运动区域分割!!!!!!!!!!!!!!!!!!!!\n')
+        log('!!!!!!!!!!!!!!!!!!!!!!!运动检测Head训练!!!!!!!!!!!!!!!!!!!!\n')
         args = get_conf('Train_MDHead_and_save')
         #args['datasetLenTrick'] = 10
         Tasker = Train_MDHead_and_save(args)
