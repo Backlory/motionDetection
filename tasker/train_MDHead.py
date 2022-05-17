@@ -9,18 +9,19 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from data.mypath import Path
-from data.dataset_JanusUAV_1 import Dataset_JanusUAV
-from model.FastGridPreDetector import FastGridPreDetector
-from utils.indicator import Evaluator
-from utils.loss import loss_Dice_Focal
+from data.dataset_JanusFLOW import Dataset_JanusFLOW
+from model.MDHead import MDHead
 
 from tasker._base_tasker import _Tasker_base
+
+from utils.indicator import Evaluator
+from utils.loss import loss_Dice_Focal
 from utils.img_display import save_pic, img_square
 from utils.mics import colorstr
 from utils.timers import tic, toc
 
 
-class Train_FastGridPreDetector_and_save(_Tasker_base):
+class Train_MDHead_and_save(_Tasker_base):
     def __init__(self, args):
         super().__init__(args)
         '''
@@ -32,13 +33,13 @@ class Train_FastGridPreDetector_and_save(_Tasker_base):
         '''
         # 模型
         print(colorstr('Initializing model...', 'yellow'))
-        self.model = FastGridPreDetector()
+        self.model = MDHead()
         self.model.to(self.device).train()
         
         # 数据
         print(colorstr('Initializing dataset...', 'yellow'))
         self.batchSize = self.args['batchSize']
-        Dataset_generater = Dataset_JanusUAV(Path.db_root_dir('janus_uav'), self.args)
+        Dataset_generater = Dataset_JanusFLOW(Path.db_root_dir('janus_uav'), self.args)
         Dataset_train = Dataset_generater.generate('train')
         self.TrainLoader = DataLoader(Dataset_train, 
                                 self.batchSize,
@@ -55,7 +56,6 @@ class Train_FastGridPreDetector_and_save(_Tasker_base):
         #优化器
         self.criterion = loss_Dice_Focal()
         self.optimizer = optim.Adam(self.model.parameters(),lr=self.args['lr_init'])
-        #self.optimizer = optim.Adam(self.model.parameters(), lr=self.args['lr_init'])
         
         #训练参数
         self.iterations = -1
@@ -107,15 +107,15 @@ class Train_FastGridPreDetector_and_save(_Tasker_base):
                 self.logger.add_scalar('learning rate realtime', 
                                         self.optimizer.param_groups[0]['lr'], 
                                         epoch*len(TrainLoader)+i)
-                img, gt = data_item
-                img, gts = self.preprocess(img, gt)
+                inputs, targets = data_item
+                inputs, targets = self.preprocess(inputs, targets)
                 #toc(t2,"预处理",mute=False)
                 #
                 self.optimizer.zero_grad()
                 
                 with autocast():
-                    outputs = self.model(img) 
-                    loss,l1,l2 = self.criterion(outputs, gts[1:4])
+                    outputs = self.model(inputs[0], inputs[1]) 
+                    loss,l1,l2 = self.criterion(outputs, targets)
                 #toc(t2,"推理",mute=False)
                 self.scaler.scale(loss).backward()
                 #scaler.unscale_(self.optimizer)
@@ -139,18 +139,9 @@ class Train_FastGridPreDetector_and_save(_Tasker_base):
                 
                 #每个epoch保存10次图片
                 if (i+1) % (max(len(TrainLoader) // 10, 1)) == 0: 
-                    sm = nn.Softmax(0)
-                    watcher = []
-                    watcher.append(img[0])
-                    watcher.append(gts[1][0,0])
-                    watcher.append(gts[2][0,0])
-                    watcher.append(gts[3][0,0])
-                    watcher.append(gts[0][0,0])
-                    watcher.append(sm(outputs[0][0])[0])
-                    watcher.append(sm(outputs[1][0])[0])
-                    watcher.append(sm(outputs[2][0])[0])
-                    
-                    img = img_square(watcher, 2, 4)
+                    watcher  = [outputs[0,0], outputs[1,0], outputs[2,0], outputs[3,0]]
+                    watcher += [targets[0,0], targets[1,0], targets[2,0], targets[3,0]]
+                    img = img_square(watcher, 2)
                     cv2.imwrite(self.save_path+f'/tri_cycle_{i}.png', img)
                     self.logger.add_image(f'train_img_sample',
                                             img, 
@@ -188,36 +179,23 @@ class Train_FastGridPreDetector_and_save(_Tasker_base):
             epoch = self.epoch_resume
 
         self.criterion = loss_Dice_Focal()
-        self.evaluator80 = Evaluator(2)
-        self.evaluator40 = Evaluator(2)
-        self.evaluator20 = Evaluator(2)
+        self.evaluator = Evaluator(2)
         with torch.no_grad():
             print( colorstr(f'validing...', 'yellow') )
             for i, data_item in enumerate(ValidLoader):
-                img, gt = data_item
-                img, gts = self.preprocess(img, gt)
+                inputs, target = data_item
+                inputs, targets = self.preprocess(inputs, target)
                 #
-                outputs = self.model(img) #flow_L1, flow_L2, flow_L3, flow_L4
-                loss = self.criterion(outputs, gts[1:4])[0]
+                outputs = self.model(inputs[0], inputs[1]) 
+                loss = self.criterion(outputs, targets)[0]
                 loss_list.append(loss.item())
 
-                #self.evaluator80.add_batch(outputs[0], gts[1])
-                #self.evaluator40.add_batch(outputs[1], gts[2])
-                #self.evaluator20.add_batch(outputs[2], gts[3])
+                #self.evaluator.add_batch(outputs[0], targets[0])
                 #每个epoch保存10次图片
                 if (i+1) % (max(len(ValidLoader) // 10, 1)) == 0: 
                     print(f"{i+1}/{len(ValidLoader)}...")
-                    sm = nn.Softmax(0)
-                    watcher = []
-                    watcher.append(img[0])
-                    watcher.append(gts[1][0,0])
-                    watcher.append(gts[2][0,0])
-                    watcher.append(gts[3][0,0])
-                    watcher.append(gts[0][0,0])
-                    watcher.append(sm(outputs[0][0])[0])
-                    watcher.append(sm(outputs[1][0])[0])
-                    watcher.append(sm(outputs[2][0])[0])
-                    
+                    watcher  = [outputs[0,0], outputs[1,0], outputs[2,0], outputs[3,0]]
+                    watcher += [targets[0,0], targets[1,0], targets[2,0], targets[3,0]]
                     img = img_square(watcher, 2, 4)
                     cv2.imwrite(self.save_path+f'/val_cycle_{i}.png', img)
                     self.logger.add_image(f'valid_img_sample',
@@ -228,10 +206,9 @@ class Train_FastGridPreDetector_and_save(_Tasker_base):
         print("\n========")
         print(f'Epoch[{epoch+1}/{self.epoches}][{i}/{len(ValidLoader)}]\t avg_loss: {temp_l:.4f}')
         
-        #for idx, ev in enumerate( [self.evaluator80, self.evaluator40, self.evaluator20] ):
-        #    mIoU, FWIoU, Acc, mAcc, mPre, mRecall, mF1, AuC = ev.evaluateAll()
+        #    mIoU, FWIoU, Acc, mAcc, mPre, mRecall, mF1, AuC = self.evaluator.evaluateAll()
         #    print(f"Evaluator at scale = {80/(2**idx)}:")
-        #    print(ev.confusion_matrix)
+        #    print(self.evaluator.confusion_matrix)
         #    print(f"mIoU={mIoU:.4f}, FWIoU={FWIoU:.4f}, Acc={Acc:.4f}, mAcc={mAcc:.4f}")
         #    print(f"mPre={mPre:.4f}, mRecall={mRecall:.4f}, mF1={mF1:.4f}, AuC={AuC:.4f}")
 
@@ -240,18 +217,14 @@ class Train_FastGridPreDetector_and_save(_Tasker_base):
                                 epoch+1)
             
 
-    def preprocess(self, imgs, gts):  #
+    def preprocess(self, inputs, target):  #
         '''
         将数据分发的结果送入GPU，转置，转float
         '''
-        imgs = imgs.to(self.device).float()
-        gts = gts.to(self.device).float()
-        temp1 = F.max_pool2d(gts, kernel_size=8, stride=8)
-        temp2 = F.max_pool2d(temp1, kernel_size=2, stride=2)
-        temp3 = F.max_pool2d(temp2, kernel_size=2, stride=2)
-        gts = [gts, temp1, temp2, temp3]
+        inputs = [x.to(self.device).float() for x in inputs]
+        target = target.to(self.device).float()
         
-        return imgs, gts
+        return inputs, target
 
     def save_model(self, epoch):
         self.model.eval()
@@ -281,15 +254,3 @@ class Train_FastGridPreDetector_and_save(_Tasker_base):
         self.model.load_state_dict(temp_states['state_dict'])
         self.optimizer.load_state_dict(temp_states['optimizer_dict'])
         self.args['ifContinueTask'] = False
-
-    def load_pretrain(self):
-        import os
-        state_dict = self.model.state_dict()
-        state_dict_pretrained = torch.load(os.path.join('weights','pretrained_homo_coco.pt'))['state_dict']
-        state_dict_update = {}
-        for i in range(20):
-            ori_sd = list(state_dict.keys())
-            pre_sd = list(state_dict_pretrained.keys())
-            state_dict_update[ori_sd[i]] = state_dict_pretrained[pre_sd[i]]
-        self.model.load_state_dict(state_dict_update)
-        return

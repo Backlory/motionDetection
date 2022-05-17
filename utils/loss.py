@@ -5,27 +5,33 @@ import cv2
 import os
 import numpy as np
 import sys
-class lossFunc_Grid(nn.Module):
+class loss_Dice_Focal(nn.Module):
     def __init__(self):
         super().__init__()
         self.diceloss = BinaryDiceLoss()
         self.focalloss = WeightedFocalLoss(alpha = 0.90)
         self.alpha = 0.5
-        self.maxpool8 = nn.MaxPool2d(4)   # 640 / 8 = 80
-        self.maxpool2 = nn.MaxPool2d(2)   # 
         
     def forward(self, preds, targets):
         loss = 0
         loss_dice_all = 0
         loss_focal_all = 0
 
-        for i in range(len(preds)):
-            loss_dice = self.diceloss(preds[i], targets[i])
-            loss_focal = self.focalloss(preds[i], targets[i])
+        if isinstance(preds, list):
+            for i in range(len(preds)):
+                loss_dice = self.diceloss(preds[i], targets[i])
+                loss_focal = self.focalloss(preds[i], targets[i])
+                
+                loss += (self.alpha)*loss_dice + (1-self.alpha)*loss_focal
+                loss_dice_all += loss_dice
+                loss_focal_all += loss_focal
+        else:
+            loss_dice = self.diceloss(preds, targets)
+            loss_focal = self.focalloss(preds, targets)
             
             loss += (self.alpha)*loss_dice + (1-self.alpha)*loss_focal
-            loss_dice_all += loss_dice
-            loss_focal_all += loss_focal
+            loss_dice_all = loss_dice
+            loss_focal_all = loss_focal
 
         return loss, loss_dice_all, loss_focal_all
 
@@ -69,7 +75,7 @@ class WeightedFocalLoss(nn.Module):
         BCE_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction='none') 
         
         targets = targets.type(torch.long)
-        at = self.alpha.gather(0, targets.data.view(-1))        #获取真实标签   
+        at = self.alpha.gather(0, targets.data.view(-1))        #获取真实标签
         
         pt = torch.exp(-BCE_loss)
         

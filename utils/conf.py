@@ -64,6 +64,18 @@ def get_conf(taskerName = "tasker"):
         arg["RAFT_small"] = "store_true"    #store_true代表False
         arg["RAFT_mixed_precision"] = "store_false"
         arg["RAFT_alternate_corr"] = "store_true"
-
+    
+    if "Train_MDHead_and_save" in taskerName:
+        arg['record'] = True
+        arg['ifContinueTask'] = False
+        arg['continueTaskExpPath'] = "exps/20220426_12_01_36_Train_FastGridPreDetector_and_save"
+        arg['continueWeightsFile'] = "model_Train_FastGridPreDetector_and_save_bs8_55.pkl"
+        arg['taskerName'] = "Train_MDHead_and_save"
+        arg['batchSize'] = 16
+        arg['numWorkers'] = 1
+        arg['lr_init'] = 0.00001
+        arg['iterations'] = -1
+        arg['epoches'] = 300
+    
 
     return arg

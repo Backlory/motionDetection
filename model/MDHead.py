@@ -59,7 +59,7 @@ class ResidualBlock(nn.Module):
 
         return self.relu(x+y)
 
-class Head(nn.Module):
+class MDHead(nn.Module):
     def __init__(self):
         super().__init__()
 
@@ -136,16 +136,16 @@ class Head(nn.Module):
         out = self.mix_conv2(feas)
         
         # 上采样
-        #upmask = .25 * self.mask(flo_dn)
-        #out = self.upsample_flow(out, upmask)
+        upmask = .25 * self.mask(flo_dn)
+        out = self.upsample_flow(out, upmask)
         return out
 
 if __name__ == "__main__":
     input_flo = torch.randn([8, 2, 640, 640])
     input_fea = torch.randn([8, 256, 80, 80])
 
-    from model.Head import Head
-    model = Head()
+    from model.MDHead import MDHead
+    model = MDHead()
     t = tic()
     for i in range(100):
         out = model(input_flo, input_fea)
