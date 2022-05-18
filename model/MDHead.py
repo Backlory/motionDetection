@@ -64,35 +64,35 @@ class MDHead(nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.resblock1 = ResidualBlock(2,8,"batch",2)
-        self.resblock2 = ResidualBlock(8,16,"batch",2)
-        self.resblock3 = ResidualBlock(16,32,"batch",2)
+        # self.resblock1 = ResidualBlock(2,8,"batch",2)
+        # self.resblock2 = ResidualBlock(8,16,"batch",2)
+        # self.resblock3 = ResidualBlock(16,32,"batch",2)
 
-        self.pool1 = self.generate_avgpool(3)
-        self.pool2 = self.generate_avgpool(7)
-        self.pool3 = self.generate_avgpool(15)
-        self.pool4 = self.generate_avgpool(31)
-        self.abs = torch.abs
+        # self.pool1 = self.generate_avgpool(3)
+        # self.pool2 = self.generate_avgpool(7)
+        # self.pool3 = self.generate_avgpool(15)
+        # self.pool4 = self.generate_avgpool(31)
+        # self.abs = torch.abs
         
-        self.flo_conv = nn.Conv2d(32*4, 32*4, 1, 1, 0)
-        self.flo_norm = nn.InstanceNorm2d(32*4)
-        self.flo_relu = nn.ReLU()
+        # self.flo_conv = nn.Conv2d(32*4, 32*4, 1, 1, 0)
+        # self.flo_norm = nn.InstanceNorm2d(32*4)
+        # self.flo_relu = nn.ReLU()
 
-        self.mix_norm_flo = nn.InstanceNorm2d(32*4)
-        self.mix_norm_fea = nn.InstanceNorm2d(256)
-        self.mix_conv1 = nn.Conv2d(128+256, 64, 3, 1, 1)
+        # self.mix_norm_flo = nn.InstanceNorm2d(32*4)
+        # self.mix_norm_fea = nn.InstanceNorm2d(256)
+        # self.mix_conv1 = nn.Conv2d(128+256, 64, 3, 1, 1)
         
-        self.outlayer = nn.Conv2d(32, 2, 3, 1, 1)
+        # self.outlayer = nn.Conv2d(32, 2, 3, 1, 1)
         
-        self.mask = nn.Sequential(
-            nn.Conv2d(128, 256, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(256, 64*9, 1, padding=0)
-            )
-        self.upsample = nn.Upsample(scale_factor=8, mode='nearest')
+        # self.mask = nn.Sequential(
+        #     nn.Conv2d(128, 256, 3, padding=1),
+        #     nn.ReLU(inplace=True),
+        #     nn.Conv2d(256, 64*9, 1, padding=0)
+        #     )
+        # self.upsample = nn.Upsample(scale_factor=8, mode='nearest')
 
         #
-        self.unet = UNet(3, in_channels=2, depth=3,merge_mode='concat')
+        self.unet = UNet(2, in_channels=2, depth=4, start_filts=16, merge_mode='concat')
 
     def generate_avgpool(self, kernel_size):
         return nn.AvgPool2d(kernel_size, 1, (kernel_size-1)//2)

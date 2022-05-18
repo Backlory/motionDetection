@@ -18,7 +18,7 @@ class Logger(object):
         #
         if message == "" or message == "\n" or message == "\r":
             return
-        if message[0] == '\r' and message[-1] != "\n":
+        if message[0] == '\r' and message[-1] != "\n":  #循环中的内容
             message = "\n"
         if message[0] == "\r":
             message = message[1:]

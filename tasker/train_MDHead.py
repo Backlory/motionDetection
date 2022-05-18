@@ -72,6 +72,8 @@ class Train_MDHead_and_save(_Tasker_base):
         else:
             self.epoches = self.args['epoches']
         print('Initialization complete.')
+
+        #
     
     def run(self):
         print('run!')
@@ -140,7 +142,7 @@ class Train_MDHead_and_save(_Tasker_base):
                 if (i+1) % (max(len(TrainLoader) // 10, 1)) == 0: 
                     temp_l = np.mean(loss_list)
                     print('\r',' ' * 100, end="")
-                    print(f'\rEpoch[{epoch+1}/{self.epoches}][{i}/{len(TrainLoader)}]-{toc(t_start)} ms\t avg_loss: {temp_l:.4f}')
+                    print(f'\rEpoch[{epoch+1}/{self.epoches}][{i}/{len(TrainLoader)}]-{toc(t_start)} ms\t avg_loss: {temp_l:.4f}\n', end="")
                     #toc(t1,"1/10 of all", (i+1) // (max(len(TrainLoader) // 10, 1)), mute=False)
                 else:
                     print('\r',' ' * 100, end="")
@@ -149,6 +151,7 @@ class Train_MDHead_and_save(_Tasker_base):
                 
                 #每个epoch保存10次图片
                 if (i+1) % (max(len(TrainLoader) // 10, 1)) == 0: 
+                    outputs = nn.Softmax(dim=1)(outputs).detach().cpu().numpy()
                     watcher  = [outputs[0,0], outputs[1,0], outputs[2,0], outputs[3,0]]
                     watcher += [targets[0,0], targets[1,0], targets[2,0], targets[3,0]]
                     img = img_square(watcher, 2)
@@ -216,6 +219,7 @@ class Train_MDHead_and_save(_Tasker_base):
                         print(f"\r{i+1}/{len(ValidLoader)}...", end="")
                     else:
                         print(f"\r{i+1}/{len(ValidLoader)}...")
+                    outputs = nn.Softmax(dim=1)(outputs).detach().cpu().numpy()
                     watcher  = [outputs[0,0], outputs[1,0], outputs[2,0], outputs[3,0]]
                     watcher += [targets[0,0], targets[1,0], targets[2,0], targets[3,0]]
                     img = img_square(watcher, 2, 4)

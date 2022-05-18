@@ -192,8 +192,12 @@ class UNet(nn.Module):
         for i in range(depth-1):
             ins = outs
             outs = ins // 2
-            up_conv = UpConv(ins, outs, up_mode=up_mode,
-                merge_mode=merge_mode)
+            if i == 0:
+                up_conv = UpConv(ins+256, outs, up_mode=up_mode,
+                    merge_mode=merge_mode)
+            else:
+                up_conv = UpConv(ins, outs, up_mode=up_mode,
+                    merge_mode=merge_mode)
             self.up_convs.append(up_conv)
 
         self.conv_final = conv1x1(outs, self.num_classes)
@@ -221,7 +225,9 @@ class UNet(nn.Module):
         for i, module in enumerate(self.down_convs):
             x, before_pool = module(x)
             encoder_outs.append(before_pool)
-
+        #
+        x = torch.cat([x, fea], dim=1) 
+        #
         for i, module in enumerate(self.up_convs):
             before_pool = encoder_outs[-(i+2)]
             x = module(before_pool, x)
