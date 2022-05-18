@@ -18,10 +18,7 @@ from algorithm.infer_Homo_RSHomoNet import Inference_Homo_RSHomoNet
 
 class Inference_Homo_switcher():
     def __init__(self, args={
-        'ifUseGPU':True, 
-        'modelType':'weights',
-        'continueTaskExpPath':'weights',
-        'continueWeightsFile_weights':'model_Train_Homo_and_save_bs32_96.pkl'
+        "MDHead_weight":""
     }) -> None:
         self.args = args
         self.infer_ransac = Inference_Homo_RANSAC()

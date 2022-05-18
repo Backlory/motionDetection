@@ -181,7 +181,7 @@ class Inference_Region_Proposal():
         ps = 32
         h_ps = 16
         
-        t = tic()
+        #t = tic()
         _, diffWarp_thres = cv2.threshold(diffWarp, 10, 255, cv2.THRESH_BINARY)
         diffWarp_thres = cv2.medianBlur(diffWarp_thres, 3)
         #toc(t, "midbluer+", 1, mute=False);t = tic()
@@ -193,7 +193,7 @@ class Inference_Region_Proposal():
         #structs = cv2.getStructuringElement(cv2.MORPH_CROSS, (5,5))
         #diffWarp_thres = cv2.erode(diffWarp_thres, structs)
         
-        t = tic()
+        #t = tic()
         temp = diffWarp_thres
         diffWarp_thres = self.droplittlearea(diffWarp_thres, thres_area=self.smallobj_size_thres)
         #toc(t, "dif1", 1, mute=False);t = tic()

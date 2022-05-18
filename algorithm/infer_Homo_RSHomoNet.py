@@ -209,6 +209,7 @@ class Inference_Homo_RSHomoNet():
         else:
             return img_base, img_t0_warp
 
+    @torch.no_grad()
     def core(self, img_t0_gray, img_base_gray, stride):
         
         h, w = img_t0_gray.shape

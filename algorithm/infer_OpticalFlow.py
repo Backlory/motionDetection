@@ -27,11 +27,21 @@ class Inference_OpticalFlow():
         self.smallobj_size_thres = smallobj_size_thres
         
         self.gridLength = 32     #边长
+        self.iters = 10
+        
         self.padder = InputPadder([1,3,640,640])
+        
         self.model = Mask_RAFT(self.gridLength, args)
-        self.model.cuda()
+        
+        if self.args['ifUseGPU']:
+            self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  
+        else:
+            self.device = torch.device('cpu')
+        self.model.to(self.device )
+        
         self.model.eval()
         self.pool = nn.MaxPool2d(self.gridLength)
+
         
 
 
@@ -152,7 +162,7 @@ class Inference_OpticalFlow():
         
         #################################
         # RAFT 光流
-        flow_low, flow_up, coords0, coords1, fmap1 = self.model(image1, image2, Masks, iters=10, test_mode=True, flow_init = last_flow)
+        flow_low, flow_up, coords0, coords1, fmap1 = self.model(image1, image2, Masks, iters=self.iters, test_mode=True, flow_init = last_flow)
         last_flow = flow_low.detach()
         #toc(tp, "RAFT", mute=False); tp = tic()
     
