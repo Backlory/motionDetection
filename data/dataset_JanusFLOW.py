@@ -8,6 +8,8 @@ import random
 from torchvision.transforms import functional as T_F
 import torch.nn.functional as F 
 
+from utils.flow_viz import flow_to_image
+        
 from _base_dataset_generater import _Dataset_Generater_Base
 
 def getall_data_train(datasetpath:str):
@@ -18,7 +20,8 @@ def getall_data_train(datasetpath:str):
         for idx in range(len(frames)):
             temp1 = os.path.join(path_tri, videoname, 'flow_ten', frames[idx])
             temp2 = os.path.join(path_tri, videoname, 'fea_ten', frames[idx])
-            data.append([temp1, temp2])
+            temp3 = os.path.join(path_tri, videoname, 'flow', frames[idx])
+            data.append([temp1, temp2, temp3])
             metadata.append(videoname)
     return data, metadata
 
@@ -56,20 +59,24 @@ class Dataset_JanusFLOW(_Dataset_Generater_Base):
         
     def __getitem__(self, index):
         try:
-            if self.args['trick_dataset_allissame']: 
+            if self.args['ifDatasetAllTheSameTrick']: 
                 index = 0
         except:
             pass
         paths, _, path_gt = self.data_list[index]
-        path_flow, path_fea = paths
+        path_flow_ten, path_fea, path_flow = paths
 
-        flow_ten = torch.load(path_flow)[0].float()
+        flow_ten = torch.load(path_flow_ten)[0].float()
         fea_ten = torch.load(path_fea)[0].float()
         inputs = [flow_ten, fea_ten]
 
         target = cv2.imread(path_gt, cv2.IMREAD_GRAYSCALE)
         ret, target = cv2.threshold(target, 127, 255, cv2.THRESH_BINARY_INV)
         target = cv2.merge([target, 255 - target])
+
+        #flo = flow_to_image(flow_ten.permute(1,2,0).cpu().numpy())
+        #cv2.imwrite("1.png", flo)
+        #cv2.imwrite("1.png", target[:,:,0])
 
         target = torch.tensor(target/255).float().permute(2,0,1)
         #

@@ -57,6 +57,9 @@ class Train_MDHead_and_save(_Tasker_base):
         #优化器
         self.criterion = loss_Dice_Focal()
         self.optimizer = optim.Adam(self.model.parameters(),lr=self.args['lr_init'])
+        #self.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.optimizer,T_max=20)
+        self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, mode='min', factor=0.5, patience=10,
+        verbose=True, threshold=0.0001, threshold_mode='rel', cooldown=5, min_lr=0, eps=1e-08)
         
         #训练参数
         self.iterations = -1
@@ -93,6 +96,10 @@ class Train_MDHead_and_save(_Tasker_base):
             print( colorstr(f'\n======== epoch = {epoch+1} ========', 'yellow') )
             # lr手动调整
             print('optimizer = ', str(self.optimizer), '\nlr = ', self.optimizer.param_groups[0]['lr'])
+            try:
+                print(f"lr_scheduler.lr = {self.scheduler.get_last_lr()[0]:.7f}")
+            except:
+                pass
             self.logger.add_scalar('learning rate', self.optimizer.param_groups[0]['lr'], epoch)
             #
             ########## train
@@ -119,9 +126,11 @@ class Train_MDHead_and_save(_Tasker_base):
                     loss,l1,l2 = self.criterion(outputs, targets)
                 #toc(t2,"推理",mute=False)
                 self.scaler.scale(loss).backward()
-                #scaler.unscale_(self.optimizer)
+                self.scaler.unscale_(self.optimizer)
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
+                
+                #self.scheduler.step()
                 #toc(t2,"更新梯度",mute=False)
                 
                 #
@@ -203,7 +212,7 @@ class Train_MDHead_and_save(_Tasker_base):
                     self.evaluator.add_batch(outputs, targets)
                 #每个epoch保存10次图片
                 if (i+1) % (max(len(ValidLoader) // 10, 1)) == 0: 
-                    if i < len(ValidLoader) // 10 * 10:
+                    if i < max(len(ValidLoader) // 10 * 10, len(ValidLoader))-1:
                         print(f"\r{i+1}/{len(ValidLoader)}...", end="")
                     else:
                         print(f"\r{i+1}/{len(ValidLoader)}...")
@@ -216,8 +225,8 @@ class Train_MDHead_and_save(_Tasker_base):
                                             epoch*len(ValidLoader)+i, 
                                             dataformats='HWC')
         temp_l = np.mean(loss_list)
-        print("\n========")
-        print(f'Epoch[{epoch+1}/{self.epoches}][{i}/{len(ValidLoader)}]\t avg_loss: {temp_l:.4f}')
+        self.scheduler.step(temp_l)
+        print(f'Epoch[{epoch+1}/{self.epoches}][{i}/{len(ValidLoader)}]\t avg_loss_val: {temp_l:.4f}')
         
         if confuse_coculate:
             mIoU, FWIoU, Acc, mAcc, mPre, mRecall, mF1, AuC = self.evaluator.evaluateAll()

@@ -37,7 +37,7 @@ class Dataset_JanusUAV(_Dataset_Generater_Base):
         
     def __getitem__(self, index):
         try:
-            if self.args['trick_dataset_allissame']: 
+            if self.args['ifDatasetAllTheSameTrick']: 
                 index = 0
         except:
             pass

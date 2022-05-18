@@ -73,7 +73,7 @@ def get_conf(taskerName = "tasker"):
         arg['taskerName'] = "Train_MDHead_and_save"
         arg['batchSize'] = 16
         arg['numWorkers'] = 1
-        arg['lr_init'] = 0.00001
+        arg['lr_init'] = 0.0001
         arg['iterations'] = -1
         arg['epoches'] = 300
     

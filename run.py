@@ -99,6 +99,8 @@ if __name__ == "__main__":
         log('!!!!!!!!!!!!!!!!!!!!!!!运动检测Head训练!!!!!!!!!!!!!!!!!!!!\n')
         args = get_conf('Train_MDHead_and_save')
         #args['datasetLenTrick'] = 10
+        args['lr_init'] = 0.005
+        args['ifDatasetAllTheSameTrick'] = True
         Tasker = Train_MDHead_and_save(args)
         Tasker.run()
         exit(0)

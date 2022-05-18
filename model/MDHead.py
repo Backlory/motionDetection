@@ -5,6 +5,7 @@ import numpy as np
 import cv2
 import kornia
 
+from model.unet import UNet
 from utils.timers import tic, toc
 
 class ResidualBlock(nn.Module):
@@ -63,37 +64,41 @@ class MDHead(nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.conv1 = ResidualBlock(2,8,"none",2)
-        self.conv2 = ResidualBlock(8,16,"none",2)
-        self.conv3 = ResidualBlock(16,32,"none",2)
+        self.resblock1 = ResidualBlock(2,8,"batch",2)
+        self.resblock2 = ResidualBlock(8,16,"batch",2)
+        self.resblock3 = ResidualBlock(16,32,"batch",2)
 
         self.pool1 = self.generate_avgpool(3)
         self.pool2 = self.generate_avgpool(7)
         self.pool3 = self.generate_avgpool(15)
         self.pool4 = self.generate_avgpool(31)
         self.abs = torch.abs
-        self.norm_in = nn.InstanceNorm2d(32*4)
         
         self.flo_conv = nn.Conv2d(32*4, 32*4, 1, 1, 0)
-        self.flo_norm = nn.BatchNorm2d(32*4)
+        self.flo_norm = nn.InstanceNorm2d(32*4)
         self.flo_relu = nn.ReLU()
 
-        self.mix_norm_flo = nn.BatchNorm2d(32*4)
-        self.mix_norm_fea = nn.BatchNorm2d(256)
+        self.mix_norm_flo = nn.InstanceNorm2d(32*4)
+        self.mix_norm_fea = nn.InstanceNorm2d(256)
         self.mix_conv1 = nn.Conv2d(128+256, 64, 3, 1, 1)
-        self.mix_conv2 = nn.Conv2d(64, 2, 3, 1, 1)
+        
+        self.outlayer = nn.Conv2d(32, 2, 3, 1, 1)
         
         self.mask = nn.Sequential(
             nn.Conv2d(128, 256, 3, padding=1),
             nn.ReLU(inplace=True),
             nn.Conv2d(256, 64*9, 1, padding=0)
             )
+        self.upsample = nn.Upsample(scale_factor=8, mode='nearest')
+
+        #
+        self.unet = UNet(3, in_channels=2, depth=3,merge_mode='concat')
 
     def generate_avgpool(self, kernel_size):
         return nn.AvgPool2d(kernel_size, 1, (kernel_size-1)//2)
         #return nn.AvgPool2d(kernel_size, 1, (kernel_size-1)//2)
     
-    def upsample_flow(self, out, mask):
+    def upsample_conv(self, out, mask):
         """ Upsample flow field [H/8, W/8, 2] -> [H, W, 2] using convex combination """
         N, _, H, W = out.shape
         mask = mask.view(N, 1, 9, 8, 8, H, W) #每个像素点及其周围一圈共计9个像素点，扩展成8*8个像素点，故权重共有9*8*8*n*c*h*w个
@@ -107,37 +112,46 @@ class MDHead(nn.Module):
         return up_out.reshape(N, 2, 8*H, 8*W)
 
     def forward(self, flo, fea):
-        flo = flo.detach()
-        fea = fea.detach()
-        
-        #flo下采样
-        flo_dn = self.conv1(flo)
-        flo_dn = self.conv2(flo_dn)
-        flo_dn = self.conv3(flo_dn)
+        # 光流转换
+        flo_u = flo[:,0:1,:,:]
+        flo_v = flo[:,1:2,:,:] #y方向
+        flo_r = torch.square(flo_u) + torch.square(flo_v)
+        temp_max = flo_r.max()
+        flo_r = flo_r.div(temp_max)
+        flo_a = torch.arctan(flo_v.div(flo_u+1e-5)) / 3.14159 + 0.5
+        flo_ra = torch.cat([flo_r, flo_a], dim=1).detach()
 
-        #均值采样
-        flo_dn_p1 = self.abs(flo_dn - self.pool1(flo_dn))
-        flo_dn_p2 = self.abs(flo_dn - self.pool2(flo_dn))
-        flo_dn_p3 = self.abs(flo_dn - self.pool3(flo_dn))
-        flo_dn_p4 = self.abs(flo_dn - self.pool4(flo_dn))
-        flo_dns = torch.cat([flo_dn_p1, flo_dn_p2, flo_dn_p3, flo_dn_p4], dim=1)
-        flo_dn = self.norm_in(flo_dns)
-        
-        # 尺度融合
-        flo_dn = self.flo_conv(flo_dn)
-        flo_dn = self.flo_norm(flo_dn)
-        flo_dn = self.flo_relu(flo_dn)
+        out = self.unet(flo_ra, fea)
+        # #flo下采样
+        # flo_dn = self.resblock1(flo_ra)
+        # flo_dn = self.resblock2(flo_dn)
+        # flo_dn = self.resblock3(flo_dn)
 
-        # 特征融合
-        flo_dn = self.mix_norm_flo(flo_dn)
-        fea = self.mix_norm_fea(fea)
-        feas = torch.cat([flo_dn, fea], dim=1)
-        feas = self.mix_conv1(feas)
-        out = self.mix_conv2(feas)
+        # # 均值采样
+        # flo_dn_p1 = self.abs(flo_dn - self.pool1(flo_dn))
+        # flo_dn_p2 = self.abs(flo_dn - self.pool2(flo_dn))
+        # flo_dn_p3 = self.abs(flo_dn - self.pool3(flo_dn))
+        # flo_dn_p4 = self.abs(flo_dn - self.pool4(flo_dn))
+        # flo_dns = torch.cat([flo_dn_p1, flo_dn_p2, flo_dn_p3, flo_dn_p4], dim=1)
+        # #flo_dns = self.norm_in(flo_dns)
+        # flo_dn = self.flo_conv(flo_dns)
+        # flo_dn = self.flo_norm(flo_dn)
+        # flo_dn = self.flo_relu(flo_dn)
+
+        # # 特征融合
+        # flo_dn = self.mix_norm_flo(flo_dn)
+        # fea = self.mix_norm_fea(fea)
+        # feas = torch.cat([flo_dn, fea], dim=1)
+        # feas = self.mix_conv1(feas)
         
-        # 上采样
-        upmask = .25 * self.mask(flo_dn)
-        out = self.upsample_flow(out, upmask)
+        # #二分类
+        # out = self.outlayer(feas)
+        # out = self.outlayer(flo_dn)
+        
+        # #上采样
+        # upmask = .25 * self.mask(flo_dn)
+        # out = self.upsample_conv(out, upmask)
+        #out = self.upsample(out)
         return out
 
 if __name__ == "__main__":
@@ -151,3 +165,4 @@ if __name__ == "__main__":
         out = model(input_flo, input_fea)
     toc(t, "1", 100, False)
     print(out.shape)
+
