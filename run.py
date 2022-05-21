@@ -108,10 +108,22 @@ if __name__ == "__main__":
         exit(0)
     
     
-    if True:
+    if False:
         from algorithm.infer_MDHead import Inference_MDHead
         log('!!!!!!!!!!!!!!!!!!!!!!!运动分割头!!!!!!!!!!!!!!!!!!!!\n')
         args = get_conf('Inference_MDHead')
         Tasker = Inference_MDHead(args=args)
         Tasker.run_test(dataset = 'j')
+        Tasker.run_test(dataset = 'u')
+        Tasker.run_test(dataset = 'k')
+        exit(0)
+    
+    if True:
+        from algorithm.infer_PostProcess import Inference_PostProcess
+        log('!!!!!!!!!!!!!!!!!!!!!!!运动分割头!!!!!!!!!!!!!!!!!!!!\n')
+        args = get_conf('Inference_PostProcess')
+        Tasker = Inference_PostProcess(args=args)
+        Tasker.run_test(dataset = 'j')
+        Tasker.run_test(dataset = 'u')
+        Tasker.run_test(dataset = 'k')
         exit(0)

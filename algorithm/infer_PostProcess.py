@@ -18,30 +18,13 @@ from algorithm.infer_VideoProcess import Inference_VideoProcess
 from algorithm.infer_Homo_switcher import Inference_Homo_switcher
 from algorithm.infer_Region_Proposal import Inference_Region_Proposal
 from algorithm.infer_OpticalFlow import Inference_OpticalFlow
+from algorithm.infer_MDHead import Inference_MDHead
 
-class Inference_MDHead():
+class Inference_PostProcess():
     def __init__(self, args={
-        'ifUseGPU':True, 
-        'modelType':'weights',
-        'continueTaskExpPath':'weights',
-        'continueWeightsFile_weights':'weights/model_Train_MDHead_and_save_bs8_60.pkl'
     }) -> None:
         self.args = args
         
-        print(colorstr('Initializing model for MDHead...', 'yellow'))
-        self.model = MDHead()
-        
-        #设备
-        if self.args['ifUseGPU']:
-            self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")  
-        else:
-            self.device = torch.device('cpu')
-        self.model.to(self.device )
-
-        #初始化
-        print(colorstr('load weights for MDHead ...', 'yellow'))
-        temp = torch.load(args["MDHead_weights"])
-        self.model.load_state_dict(temp["state_dict"])
 
         
 
@@ -51,6 +34,7 @@ class Inference_MDHead():
         self.infer_align = Inference_Homo_switcher(args=self.args)
         self.infer_RP = Inference_Region_Proposal(args=self.args)
         self.infer_optical = Inference_OpticalFlow(args=self.args)
+        self.infer_mdhead = Inference_MDHead(args=self.args)
         if dataset == 'u':
             path = r"E:\dataset\dataset-fg-det\UAC_IN_CITY\video_all_1-skip.mp4"
         elif dataset == 'j':
@@ -88,9 +72,10 @@ class Inference_MDHead():
             flo_ten, fmap1_ten = self.infer_optical.__call__(img_t0, img_t1_warp, moving_mask)
             toc(tp, "infer_optical", 1, False); tp=tic()
 
-            
+            out = infer_mdhead.__call__(flo_ten, fmap1_ten)
+            toc(tp, "infer_mdhead", 1, False); tp=tic()
+
             # ==============================================↓↓↓↓
-            out = self.__call__(flo_ten, fmap1_ten)
             toc(tp, "MDHead", 1, False); tp=tic()
             
             out = out.cpu().numpy().astype(np.uint8)

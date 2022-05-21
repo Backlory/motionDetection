@@ -90,5 +90,18 @@ def get_conf(taskerName = "tasker"):
         arg["RAFT_alternate_corr"] = "store_true"
 
         arg["MDHead_weights"] = "weights/model_Train_MDHead_and_save_bs8_60.pkl"
+    
+    if "Inference_PostProcess" in taskerName:
+        arg['modelType'] = 'weights' #weights, script
+        arg['continueTaskExpPath'] = "weights"
+        arg['continueWeightsFile_weights'] = "model_Train_Homo_and_save_bs32_96.pkl"
+        arg['taskerName'] = "Tester_Homo"
+        
+        arg["RAFT_model"] = "model/thirdparty_RAFT/model/raft-sintel.pth"
+        arg["RAFT_path"] = r"E:\dataset\dataset-fg-det\Janus_UAV_Dataset\Train\video_1\video"
+        arg["RAFT_small"] = "store_true"    #store_true代表False
+        arg["RAFT_mixed_precision"] = "store_false"
+        arg["RAFT_alternate_corr"] = "store_true"
 
+        arg["MDHead_weights"] = "weights/model_Train_MDHead_and_save_bs8_60.pkl"
     return arg
