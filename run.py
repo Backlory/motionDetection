@@ -120,7 +120,7 @@ if __name__ == "__main__":
     
     if True:
         from algorithm.infer_PostProcess import Inference_PostProcess
-        log('!!!!!!!!!!!!!!!!!!!!!!!运动分割头!!!!!!!!!!!!!!!!!!!!\n')
+        log('!!!!!!!!!!!!!!!!!!!!!!!运动后处理模块!!!!!!!!!!!!!!!!!!!!\n')
         args = get_conf('Inference_PostProcess')
         Tasker = Inference_PostProcess(args=args)
         Tasker.run_test(dataset = 'j')

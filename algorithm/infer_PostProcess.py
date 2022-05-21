@@ -47,7 +47,7 @@ class Inference_PostProcess():
         print(f"run testing wiht fps_target = {tempVideoProcesser.fps_now}")
         
         t_use_all = []
-        history_output = None
+        his_info = None
         idx = 0
         while(True):
             idx += 1
@@ -64,7 +64,7 @@ class Inference_PostProcess():
             toc(tp, "infer_align", 1, False); tp=tic()
 
             # 运动区域候选
-            moving_mask = self.infer_RP.__call__(img_t0, img_t1_warp, diffWarp)
+            moving_mask = self.infer_RP.__call__(img_t0, img_t1_warp, diffWarp, his_info)
             temp_rate_1 = moving_mask.mean() / 255
             toc(tp, "infer_RP", 1, False); tp=tic()
 
@@ -72,35 +72,21 @@ class Inference_PostProcess():
             flo_ten, fmap1_ten = self.infer_optical.__call__(img_t0, img_t1_warp, moving_mask)
             toc(tp, "infer_optical", 1, False); tp=tic()
 
-            out = infer_mdhead.__call__(flo_ten, fmap1_ten)
+            out = self.infer_mdhead.__call__(flo_ten, fmap1_ten)
             toc(tp, "infer_mdhead", 1, False); tp=tic()
 
             # ==============================================↓↓↓↓
-            toc(tp, "MDHead", 1, False); tp=tic()
             
-            out = out.cpu().numpy().astype(np.uint8)
-            
-            if history_output is not None:
-                out_addhis = cv2.bitwise_or(out, history_output)
-            else:
-                out_addhis = out
-            
-            img_t0_enhancement = np.array(img_t0, copy=True)
-            img_t0_enhancement[:,:,0] *= (1-out_addhis)
-            img_t0_enhancement[:,:,1] *= (1-out_addhis)
-            img_t0_enhancement[:,:,2] *= (1-out_addhis)
-            img_t0_enhancement[:,:,2] += (out_addhis * 255)
-            img_t0_enhancement = img_t0_enhancement.astype(np.uint8)
+            img_t0_enhancement, his_info = self.__call__(img_t0, out, H_warp, flo_ten, his_info)
             toc(tp, "postproces", 1, False); tp=tic()
             
 
             # ==============================================↑↑↑↑
-            history_output = np.array(out, copy=True)
             t_use = toc(t)
             t_use_all.append(t_use)
             print(f'\r== frame {idx} ==> rate={effect}, PR_rate={temp_rate_1:.5f}, time={t_use}ms, alg_type={alg_type}',  end="")
             temp = img_square([img_t0, out, img_t0_enhancement], 1)
-            temp = cv2.resize(temp, (960, 320),cv2.INTER_AREA)
+            temp = cv2.resize(temp, (960, 320),cv2.INTER_NEAREST)
             cv2.imshow("1", temp)
             cv2.waitKey(1)
             #cv2.imwrite(f"1.png", temp)
@@ -120,19 +106,57 @@ class Inference_PostProcess():
         cap.release()
 
     @torch.no_grad()
-    def __call__(self, flo_ten, fmap1_ten):
+    def __call__(self, img_t0, out, H_warp, flo_ten, his_info=None):
         '''
-        挑选运动区域.
-        history代表上一帧的检测结果，用于增强本帧。
         '''
-        #tp = tic()
-        out = self.model(flo_ten, fmap1_ten)    #第0维代表前景概率，第一维代表背景概率
-        #out = 1 - torch.argmax(out, dim=1)                 #argmax所得为索引，0代表前景，1代表背景
-        out = torch.argmin(out, dim=1)[0]                 #argmin正好将argmax反过来，此时0代表背景，1代表前景
-        #out = nn.Softmax(1)(out)[0,0]               #softmax为所得
+        out = out.cpu().numpy().astype(np.uint8)
+
+        # 历史信息解析
+        if his_info is not None:
+            out_addhis = cv2.bitwise_or(out, his_info)
+        else:
+            out_addhis = out
         
-        
-        return out
+        # 运动区增强
+        img_t0_enhancement = np.array(img_t0, copy=True)
+        img_t0_enhancement[:,:,0] *= (1-out_addhis)
+        img_t0_enhancement[:,:,1] *= (1-out_addhis)
+        img_t0_enhancement[:,:,2] *= (1-out_addhis)
+        img_t0_enhancement[:,:,2] += (out_addhis * 255)
+        img_t0_enhancement = img_t0_enhancement.astype(np.uint8)
+
+        # 获取运动目标中心位置的光流
+        try:
+            H_warp_inv = np.linalg.inv(H_warp)
+        except:
+            H_warp_inv = np.eye(3)
+
+        nlabels, labels, stats, centroids = cv2.connectedComponentsWithStats(out)
+        for i in range(1, nlabels):
+            regions_size = stats[i,4] 
+            if regions_size > 20: # 面积过滤
+                x,y,w,h = stats[i,0:4]
+                x_center = x + w // 2
+                y_center = y + h // 2
+                flo_point = flo_ten[0,:, y_center, x_center]
+                v_w, v_h  = flo_point
+                v_w, v_h = v_w.item(), v_h.item()
+                k = (v_w**2 + v_h**2) ** 0.5
+                if k < 10:
+                    v_h *= 10/k 
+                    v_w *= 10/k 
+                v_w, v_h = v_w + x_center, v_h + y_center
+
+                #还原光流
+                v_w_warp, v_h_warp, _ = np.matmul(H_warp_inv, np.array([[v_w], [v_h], [1]]))
+                v_w_warp, v_h_warp = int(v_w_warp), int(v_h_warp)
+                
+                # 打印箭头
+                cv2.arrowedLine(img_t0_enhancement, (x_center, y_center), (v_w_warp, v_h_warp), (0,0,0), 2, tipLength=0.2)
+                
+        # 保存历史信息
+        his_info = None
+        return img_t0_enhancement, his_info
 
     
     
