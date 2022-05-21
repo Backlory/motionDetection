@@ -118,11 +118,22 @@ if __name__ == "__main__":
         Tasker.run_test(dataset = 'k')
         exit(0)
     
-    if True:
+    if False:
         from algorithm.infer_PostProcess import Inference_PostProcess
         log('!!!!!!!!!!!!!!!!!!!!!!!运动后处理模块!!!!!!!!!!!!!!!!!!!!\n')
         args = get_conf('Inference_PostProcess')
         Tasker = Inference_PostProcess(args=args)
+        Tasker.run_test(dataset = 'j')
+        Tasker.run_test(dataset = 'u')
+        Tasker.run_test(dataset = 'k')
+        exit(0)
+
+    
+    if True:
+        from algorithm.infer_all import Inference_all
+        log('!!!!!!!!!!!!!!!!!!!!!!!全模型!!!!!!!!!!!!!!!!!!!!\n')
+        args = get_conf('Inference_all')
+        Tasker = Inference_all(args=args)
         Tasker.run_test(dataset = 'j')
         Tasker.run_test(dataset = 'u')
         Tasker.run_test(dataset = 'k')

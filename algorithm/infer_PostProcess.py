@@ -113,7 +113,8 @@ class Inference_PostProcess():
 
         # 历史信息解析
         if his_info is not None:
-            out_addhis = cv2.bitwise_or(out, his_info)
+            his_info["lastout"]
+            out_addhis = cv2.bitwise_or(out, his_info["lastout"])
         else:
             out_addhis = out
         
@@ -142,7 +143,7 @@ class Inference_PostProcess():
                 v_w, v_h  = flo_point
                 v_w, v_h = v_w.item(), v_h.item()
                 k = (v_w**2 + v_h**2) ** 0.5
-                if k < 10:
+                if 0 < k < 10:
                     v_h *= 10/k 
                     v_w *= 10/k 
                 v_w, v_h = v_w + x_center, v_h + y_center
@@ -155,7 +156,7 @@ class Inference_PostProcess():
                 cv2.arrowedLine(img_t0_enhancement, (x_center, y_center), (v_w_warp, v_h_warp), (0,0,0), 2, tipLength=0.2)
                 
         # 保存历史信息
-        his_info = None
+        his_info = {"lastout":out}
         return img_t0_enhancement, his_info
 
     
