@@ -125,13 +125,13 @@ class Inference_PostProcess():
         img_t0_enhancement[:,:,2] *= (1-out_addhis)
         img_t0_enhancement[:,:,2] += (out_addhis * 255)
         img_t0_enhancement = img_t0_enhancement.astype(np.uint8)
-
+        
         # 获取运动目标中心位置的光流
         try:
             H_warp_inv = np.linalg.inv(H_warp)
         except:
             H_warp_inv = np.eye(3)
-
+        img_t0_arrow = np.array(img_t0, copy=True)
         nlabels, labels, stats, centroids = cv2.connectedComponentsWithStats(out)
         for i in range(1, nlabels):
             regions_size = stats[i,4] 
@@ -153,7 +153,8 @@ class Inference_PostProcess():
                 v_w_warp, v_h_warp = int(v_w_warp), int(v_h_warp)
                 
                 # 打印箭头
-                img_t0_arrow = cv2.arrowedLine(img_t0_enhancement, (x_center, y_center), (v_w_warp, v_h_warp), (0,0,0), 2, tipLength=0.2)
+                img_t0_arrow = cv2.rectangle(img_t0_arrow, (x,y), (x+w,y+h), (0,0,255), 2)
+                img_t0_arrow = cv2.arrowedLine(img_t0_arrow, (x_center, y_center), (v_w_warp, v_h_warp), (0,0,0), 2, tipLength=0.2)
                 
         # 保存历史信息
         his_info = {"lastout":out}

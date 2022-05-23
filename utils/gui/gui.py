@@ -51,7 +51,8 @@ class mywindow(QMainWindow):
         self.ui.actionLoad_Video.triggered.connect(self.loadVideo)
         self.ui.actionClose_Video.triggered.connect(self.closeVideo)
         self.ui.actionAbout_this_app.triggered.connect(self.SLOTabout)
-        
+        print("GUI is ready.")
+
     def __del__(self):
         self.closeVideo()
         return
@@ -267,6 +268,7 @@ class algorithm:
             output = img_t0_arrow
         else:
             output = img_t0
+        output = cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
         logs = f"{alg_type}={effect:.4f}, dn={temp_rate_1:.4f}"
         return output, logs
     
