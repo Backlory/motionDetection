@@ -1,4 +1,4 @@
-import sys
+import sys, os
 from tkinter.tix import Tree
 import cv2
 import numpy as np
@@ -24,6 +24,11 @@ from algorithm.infer_PostProcess import Inference_PostProcess
 class Inference_all():
     def __init__(self, args={
         
+        'ifUseGPU' : True,
+        'ifDataAugment' : True,
+        'ifDatasetAllTheSameTrick' : False,
+        'datasetLenTrick' : -1,
+
         'modelType' : 'weights',
         'continueTaskExpPath' : "weights",
         'continueWeightsFile_weights' : "model_Train_Homo_and_save_bs32_96.pkl",
@@ -60,6 +65,11 @@ class Inference_all():
     
     def __call__(self, path, fps_target=30, savedir="temp/1"):
         #
+        try:
+            os.mkdir(savedir)
+        except:
+            pass
+        #
         cap = cv2.VideoCapture(path)
         tempVideoProcesser = Inference_VideoProcess(cap=cap,fps_target=fps_target)
         print(f"run testing wiht fps_target = {tempVideoProcesser.fps_now}")
@@ -76,14 +86,16 @@ class Inference_all():
                 break
 
             # 处理一帧
-            out, img_t0_enhancement, his_info, effect, alg_type, diffOrigin, temp_rate_1 = self.step(
+            diffOrigin, moving_mask, out, img_t0_enhancement, img_t0_arrow, \
+                effect, alg_type, temp_rate_1, his_info = self.step(
                 img_t0, img_t1, his_info=his_info
                 )
             
             t_use = toc(t)
             print(f'\r== frame {idx} ==> rate={effect}, PR_rate={temp_rate_1:.5f}, time={t_use}ms, alg_type={alg_type}',  end="")
             cv2.imwrite(f"{savedir}/{idx}.png", img_t0_enhancement)
-            cv2.imshow("1", img_t0_enhancement)
+            cv2.imshow("origin", img_t0)
+            cv2.imshow("moving detecting", img_t0_enhancement)
             cv2.waitKey(1)
             pass
             
@@ -100,7 +112,7 @@ class Inference_all():
         # 运动区域候选
         moving_mask = self.infer_RP.__call__(img_t0, img_t1_warp, diffWarp, his_info)
         temp_rate_1 = moving_mask.mean() / 255
-            
+        
         #光流提取
         flo_ten, fmap1_ten = self.infer_optical.__call__(img_t0, img_t1_warp, moving_mask)
         
@@ -108,8 +120,13 @@ class Inference_all():
         out = self.infer_mdhead.__call__(flo_ten, fmap1_ten)
         
         # 后处理
-        img_t0_enhancement, his_info = self.infer_postproc.__call__(img_t0, out, H_warp, flo_ten, his_info)
+        img_t0_enhancement, img_t0_arrow, his_info = self.infer_postproc.__call__(img_t0, out, H_warp, flo_ten, his_info)
         
-        return out, img_t0_enhancement, his_info, effect, alg_type,  diffOrigin, temp_rate_1
+        # 输出
+        diffOrigin = cv2.cvtColor(diffOrigin, cv2.COLOR_GRAY2BGR)
+        moving_mask = cv2.cvtColor(moving_mask, cv2.COLOR_GRAY2BGR)
+        
+        return diffOrigin, moving_mask, out, img_t0_enhancement, img_t0_arrow, \
+                effect, alg_type, temp_rate_1, his_info
     
     

@@ -77,7 +77,7 @@ class Inference_PostProcess():
 
             # ==============================================↓↓↓↓
             
-            img_t0_enhancement, his_info = self.__call__(img_t0, out, H_warp, flo_ten, his_info)
+            img_t0_colorblock,img_t0_arrow, his_info = self.__call__(img_t0, out, H_warp, flo_ten, his_info)
             toc(tp, "postproces", 1, False); tp=tic()
             
 
@@ -85,8 +85,8 @@ class Inference_PostProcess():
             t_use = toc(t)
             t_use_all.append(t_use)
             print(f'\r== frame {idx} ==> rate={effect}, PR_rate={temp_rate_1:.5f}, time={t_use}ms, alg_type={alg_type}',  end="")
-            temp = img_square([img_t0, out, img_t0_enhancement], 1)
-            temp = cv2.resize(temp, (960, 320),cv2.INTER_NEAREST)
+            temp = img_square([img_t0, out, img_t0_colorblock, img_t0_arrow], 1)
+            temp = cv2.resize(temp, (1280, 320),cv2.INTER_NEAREST)
             cv2.imshow("1", temp)
             cv2.waitKey(1)
             #cv2.imwrite(f"1.png", temp)
@@ -153,11 +153,11 @@ class Inference_PostProcess():
                 v_w_warp, v_h_warp = int(v_w_warp), int(v_h_warp)
                 
                 # 打印箭头
-                cv2.arrowedLine(img_t0_enhancement, (x_center, y_center), (v_w_warp, v_h_warp), (0,0,0), 2, tipLength=0.2)
+                img_t0_arrow = cv2.arrowedLine(img_t0_enhancement, (x_center, y_center), (v_w_warp, v_h_warp), (0,0,0), 2, tipLength=0.2)
                 
         # 保存历史信息
         his_info = {"lastout":out}
-        return img_t0_enhancement, his_info
+        return img_t0_enhancement, img_t0_arrow, his_info
 
     
     

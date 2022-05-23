@@ -1,0 +1,593 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MotionDetectionSystemClass</class>
+ <widget class="QMainWindow" name="MotionDetectionSystemClass">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1034</width>
+    <height>570</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Motion Detection System</string>
+  </property>
+  <widget class="QWidget" name="centralWidget">
+   <widget class="QGroupBox" name="groupBox_2">
+    <property name="geometry">
+     <rect>
+      <x>630</x>
+      <y>10</y>
+      <width>391</width>
+      <height>171</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>Input Channel</string>
+    </property>
+    <widget class="QLabel" name="InputArea">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>20</y>
+       <width>211</width>
+       <height>141</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="pushButton_loadvideo">
+     <property name="geometry">
+      <rect>
+       <x>230</x>
+       <y>10</y>
+       <width>151</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Load Video...</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="pushButton_close">
+     <property name="geometry">
+      <rect>
+       <x>230</x>
+       <y>50</y>
+       <width>151</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Close Video</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="pushButton_analyzeOffline">
+     <property name="geometry">
+      <rect>
+       <x>230</x>
+       <y>130</y>
+       <width>151</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Analyze offline</string>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QGroupBox" name="groupBox">
+    <property name="geometry">
+     <rect>
+      <x>630</x>
+      <y>360</y>
+      <width>391</width>
+      <height>151</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>Control Panal</string>
+    </property>
+    <widget class="QRadioButton" name="radioButton">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>40</y>
+       <width>121</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Original Video</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
+    <widget class="QRadioButton" name="radioButton_2">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>60</y>
+       <width>161</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Frame Difference</string>
+     </property>
+    </widget>
+    <widget class="QRadioButton" name="radioButton_3">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>80</y>
+       <width>131</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Moving Mask</string>
+     </property>
+    </widget>
+    <widget class="QRadioButton" name="radioButton_4">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>100</y>
+       <width>161</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Motion Detection</string>
+     </property>
+    </widget>
+    <widget class="QRadioButton" name="radioButton_5">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>120</y>
+       <width>131</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Motion Prediction</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_4">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>20</y>
+       <width>54</width>
+       <height>12</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Mode：</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="pushButton_Parameters">
+     <property name="geometry">
+      <rect>
+       <x>270</x>
+       <y>110</y>
+       <width>111</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Parameters...</string>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QGroupBox" name="groupBox_3">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>10</y>
+      <width>611</width>
+      <height>501</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>Output Channel</string>
+    </property>
+    <widget class="QLabel" name="OutputArea">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>20</y>
+       <width>591</width>
+       <height>441</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string/>
+     </property>
+    </widget>
+    <widget class="QSlider" name="slider_timestamp">
+     <property name="geometry">
+      <rect>
+       <x>60</x>
+       <y>470</y>
+       <width>431</width>
+       <height>20</height>
+      </rect>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_timestamp">
+     <property name="geometry">
+      <rect>
+       <x>500</x>
+       <y>467</y>
+       <width>111</width>
+       <height>21</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>00:00:00/00:00:00</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="pushButton_playpause">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>463</y>
+       <width>41</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <family>Adobe 宋体 Std L</family>
+       <pointsize>14</pointsize>
+      </font>
+     </property>
+     <property name="text">
+      <string>▶</string>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QTextBrowser" name="textBrowser">
+    <property name="geometry">
+     <rect>
+      <x>630</x>
+      <y>190</y>
+      <width>391</width>
+      <height>151</height>
+     </rect>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QMenuBar" name="menuBar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1034</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menu_Video">
+    <property name="title">
+     <string>&amp;Video</string>
+    </property>
+    <addaction name="actionLoad_Video"/>
+    <addaction name="actionClose_Video"/>
+   </widget>
+   <widget class="QMenu" name="menu_Algorithm">
+    <property name="title">
+     <string>&amp;Preprocess</string>
+    </property>
+    <widget class="QMenu" name="menuFilter">
+     <property name="title">
+      <string>Filter</string>
+     </property>
+     <addaction name="actionGaussian_Filter"/>
+     <addaction name="actionMean_Filter"/>
+     <addaction name="actionMedian_fILTER"/>
+    </widget>
+    <widget class="QMenu" name="menuEqualization">
+     <property name="title">
+      <string>Equalization</string>
+     </property>
+     <addaction name="actionHistogram_Equalization"/>
+     <addaction name="actionCLAHE"/>
+    </widget>
+    <addaction name="actionNone"/>
+    <addaction name="separator"/>
+    <addaction name="actionGrayscale_2"/>
+    <addaction name="menuFilter"/>
+    <addaction name="menuEqualization"/>
+   </widget>
+   <widget class="QMenu" name="menuOutput">
+    <property name="title">
+     <string>&amp;Detection</string>
+    </property>
+    <widget class="QMenu" name="menuFrame_Align">
+     <property name="title">
+      <string>Frame Align</string>
+     </property>
+     <addaction name="actionRANSAC_ORB"/>
+     <addaction name="actionHomographynet"/>
+     <addaction name="actionRSHomoNet"/>
+     <addaction name="actionSwitcher"/>
+    </widget>
+    <addaction name="menuFrame_Align"/>
+   </widget>
+   <widget class="QMenu" name="menu_about">
+    <property name="title">
+     <string>&amp;Export</string>
+    </property>
+   </widget>
+   <widget class="QMenu" name="menu_About">
+    <property name="title">
+     <string>&amp;About</string>
+    </property>
+    <addaction name="actionAbout_this_app"/>
+   </widget>
+   <addaction name="menu_Video"/>
+   <addaction name="menu_Algorithm"/>
+   <addaction name="menuOutput"/>
+   <addaction name="menu_about"/>
+   <addaction name="menu_About"/>
+  </widget>
+  <widget class="QStatusBar" name="statusBar"/>
+  <action name="actionLoad_Video">
+   <property name="text">
+    <string>Load Video...</string>
+   </property>
+  </action>
+  <action name="actionClose_Video">
+   <property name="text">
+    <string>Close Video</string>
+   </property>
+  </action>
+  <action name="actionNone">
+   <property name="text">
+    <string>Clear All</string>
+   </property>
+  </action>
+  <action name="actionGrayscale">
+   <property name="text">
+    <string>Grayscale</string>
+   </property>
+  </action>
+  <action name="actionGrayscale_2">
+   <property name="text">
+    <string>Grayscale</string>
+   </property>
+  </action>
+  <action name="actionGaussian_Filter">
+   <property name="text">
+    <string>Gaussian Filter...</string>
+   </property>
+  </action>
+  <action name="actionMean_Filter">
+   <property name="text">
+    <string>Mean Filter...</string>
+   </property>
+  </action>
+  <action name="actionMedian_fILTER">
+   <property name="text">
+    <string>Median fILTER...</string>
+   </property>
+  </action>
+  <action name="actionHistogram_Equalization">
+   <property name="text">
+    <string>Histogram Equalization</string>
+   </property>
+  </action>
+  <action name="actionCLAHE">
+   <property name="text">
+    <string>CLAHE</string>
+   </property>
+  </action>
+  <action name="actionRANSAC_ORB">
+   <property name="text">
+    <string>RANSAC+ORB</string>
+   </property>
+  </action>
+  <action name="actionHomographynet">
+   <property name="text">
+    <string>Homographynet</string>
+   </property>
+  </action>
+  <action name="actionRSHomoNet">
+   <property name="text">
+    <string>RSHomoNet</string>
+   </property>
+  </action>
+  <action name="actionSwitcher">
+   <property name="text">
+    <string>Switcher</string>
+   </property>
+  </action>
+  <action name="actionAbout_this_app">
+   <property name="text">
+    <string>About this app...</string>
+   </property>
+  </action>
+ </widget>
+ <layoutdefault spacing="6" margin="11"/>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>pushButton_loadvideo</sender>
+   <signal>clicked()</signal>
+   <receiver>MotionDetectionSystemClass</receiver>
+   <slot>loadVideo()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>893</x>
+     <y>67</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>898</x>
+     <y>32</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>slider_timestamp</sender>
+   <signal>sliderMoved(int)</signal>
+   <receiver>MotionDetectionSystemClass</receiver>
+   <slot>changeVideoProgress()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>265</x>
+     <y>509</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>286</x>
+     <y>569</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>pushButton_playpause</sender>
+   <signal>clicked()</signal>
+   <receiver>MotionDetectionSystemClass</receiver>
+   <slot>pushButtonPlayPause()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>32</x>
+     <y>518</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>70</x>
+     <y>569</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>pushButton_close</sender>
+   <signal>clicked()</signal>
+   <receiver>MotionDetectionSystemClass</receiver>
+   <slot>closeVideo()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>951</x>
+     <y>113</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>991</x>
+     <y>197</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>pushButton_analyzeOffline</sender>
+   <signal>clicked()</signal>
+   <receiver>MotionDetectionSystemClass</receiver>
+   <slot>analyseOffline()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>907</x>
+     <y>182</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>703</x>
+     <y>665</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>radioButton</sender>
+   <signal>clicked()</signal>
+   <receiver>MotionDetectionSystemClass</receiver>
+   <slot>updateOutPutType()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>722</x>
+     <y>436</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>637</x>
+     <y>626</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>radioButton_2</sender>
+   <signal>clicked()</signal>
+   <receiver>MotionDetectionSystemClass</receiver>
+   <slot>updateOutPutType()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>700</x>
+     <y>454</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>665</x>
+     <y>675</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>radioButton_3</sender>
+   <signal>clicked()</signal>
+   <receiver>MotionDetectionSystemClass</receiver>
+   <slot>updateOutPutType()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>673</x>
+     <y>477</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>670</x>
+     <y>619</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>radioButton_4</sender>
+   <signal>clicked()</signal>
+   <receiver>MotionDetectionSystemClass</receiver>
+   <slot>updateOutPutType()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>700</x>
+     <y>498</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>654</x>
+     <y>586</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>radioButton_5</sender>
+   <signal>clicked()</signal>
+   <receiver>MotionDetectionSystemClass</receiver>
+   <slot>updateOutPutType()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>723</x>
+     <y>518</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>660</x>
+     <y>828</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+ <slots>
+  <slot>loadVideo()</slot>
+  <slot>changeVideoProgress()</slot>
+  <slot>pushButtonPlayPause()</slot>
+  <slot>closeVideo()</slot>
+  <slot>analyseOffline()</slot>
+  <slot>updateOutPutType()</slot>
+ </slots>
+</ui>
