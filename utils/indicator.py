@@ -79,11 +79,35 @@ class Evaluator(object):
         #for p, t in zip(preds, gt_image):
         #    confusion_matrix[p, t] += 1
         return confusion_matrix
+    
+    def _generate_matrix_np(self, preds:np.ndarray, gt_image:np.ndarray):
+        
+        confusion_matrix = np.zeros([self.num_class, self.num_class])
+        
+        preds = preds / 255.0
+        gt_image = gt_image / 255.0
+        
+        p1t1 = (preds * gt_image).sum()
+        p1t0 = (preds * (1 - gt_image)).sum()
+        p0t1 = ((1 - preds) * gt_image).sum()
+        p0t0 = ((1 - preds) * (1 - gt_image)).sum()
+
+        confusion_matrix[0,0] = p0t0
+        confusion_matrix[0,1] = p0t1
+        confusion_matrix[1,0] = p1t0
+        confusion_matrix[1,1] = p1t1
+        #for p, t in zip(preds, gt_image):
+        #    confusion_matrix[p, t] += 1
+        return confusion_matrix
 
     def add_batch(self, pre_image, gt_image):
         #gt_image和pre_image都是0、1、2这类的
         assert (gt_image.shape == pre_image.shape)
         self.confusion_matrix += self._generate_matrix(pre_image, gt_image)
+
+    def add_batch_np(self, pre_image, gt_image):
+        assert (gt_image.shape == pre_image.shape)
+        self.confusion_matrix += self._generate_matrix_np(pre_image, gt_image)
 
     def reset(self):
         self.confusion_matrix = np.zeros((self.num_class,) * 2, int)
