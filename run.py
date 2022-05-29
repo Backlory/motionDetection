@@ -57,7 +57,7 @@ if __name__ == "__main__":
             Infer.run_test(fps)
         exit(0)
 
-    if False:
+    if True:
         from algorithm.infer_Homo_switcher import Inference_Homo_switcher
         log('!!!!!!!!!!!!!!!!!!!!!!!单应性测试，switch算法!!!!!!!!!!!!!!!!!!!!\n')
         args = get_conf('infer_Homo')

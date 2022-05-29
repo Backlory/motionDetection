@@ -44,7 +44,7 @@ class Inference_Homo_switcher():
         ss1,ss2 = [],[]
         effect_all = []
         t_use_all = []
-        alg_his = {'ransac':0, 'RSHomoNet':0, 'None':0}
+        alg_his = {'RANSAC':0, 'RSHomoNet':0, 'None':0}
         idx = 0
         frameUseless = 0
         while(True):
