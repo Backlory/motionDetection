@@ -8,11 +8,13 @@ import os
 import sys
 from utils.indicator import Evaluator
 #======================================================================
-def main(video_idx):
+def main(video_idx,cm=None):
     print("model...")
 
     print("Processing...")
     evaluator = Evaluator(2)
+    if cm is not None:
+        evaluator.confusion_matrix = cm
     if True:
         video_idx=video_idx
         step_frame = 1
@@ -41,14 +43,15 @@ def main(video_idx):
             print(f"mPre={mPre:.4f}, mRecall={mRecall:.4f}, mF1={mF1:.4f}, AuC={AuC:.4f}")
 
             savedStdout = sys.stdout
-            with open("log2.txt", "a+") as f:
+            with open("log_Train.txt", "a+") as f:
                 sys.stdout = f
                 print(f"{mIoU:.4f}, {FWIoU:.4f}, {Acc:.4f}, {mAcc:.4f}, {mPre:.4f}, {mRecall:.4f}, {mF1:.4f}, {AuC:.4f}")
             sys.stdout = savedStdout
         print("task has been finished.")
-
+        return evaluator.confusion_matrix
 
 if __name__ == "__main__":
+    cm = None
     for i in range(1, 48):
-        main(i)
+        cm = main(i,cm)
     

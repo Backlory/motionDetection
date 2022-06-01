@@ -379,7 +379,7 @@
   </action>
   <action name="actionMedian_fILTER">
    <property name="text">
-    <string>Median fILTER...</string>
+    <string>Median Filter...</string>
    </property>
   </action>
   <action name="actionHistogram_Equalization">

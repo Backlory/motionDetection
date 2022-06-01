@@ -26,24 +26,24 @@ def main(video_idx):
     if True:
         video_idx=video_idx
         step_frame = 1
-        len_all = len(os.listdir(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_{str(video_idx)}/video/"))
+        video_dir_base = f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_{str(video_idx)}/video/"
+        video_dir_base = r"E:/dataset/dataset-fg-det/DAVIS/480p/bmx-bumps/"
+        video_dir_base = r"E:/dataset/dataset-fg-det/DAVIS/480p/horsejump-low/"
+        video_dir_base = r"E:/dataset/dataset-fg-det/DAVIS/480p/libby/"
+        video_dir_base = r"E:/dataset/dataset-fg-det/DAVIS/480p/mallard-fly/"
+        video_dir_base = r"E:/dataset/dataset-fg-det/DAVIS/480p/paragliding/"
+        video_dir_base = r"E:/dataset/dataset-fg-det/DAVIS/480p/skate-park/"
+        len_all = len(os.listdir(video_dir_base))
         len_all = len_all - step_frame
-        try:
-            os.mkdir(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Validation/video_{str(video_idx)}/pred")
-        except:
-            pass
                 
         his_info = None
         temp_rate = []
         with torch.no_grad():
             for i in range(len_all):
                 #i = i % (len_all-step_frame*2)
-                img_t0 = cv2.imread(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Validation/video_{str(video_idx)}/video/{str(i).zfill(3)}.png")
-                img_t1 = cv2.imread(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Validation/video_{str(video_idx)}/video/{str(i+step_frame).zfill(3)}.png")
-                
-                #gt = cv2.imread(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Train/video_{str(video_idx)}/gt_mov/{str(i).zfill(3)}.png", cv2.IMREAD_GRAYSCALE) 
-                #_, gt = cv2.threshold(gt, 127, 255, cv2.THRESH_BINARY_INV)
-                h_img_t1, w_img_t1, _ = img_t1.shape
+                img_t0 = cv2.imread(f"{video_dir_base}{str(i).zfill(5)}.jpg")
+                img_t1 = cv2.imread(f"{video_dir_base}{str(i+step_frame).zfill(5)}.jpg")
+
                 
                 t=tic()
                 diffOrigin, moving_mask, out, img_t0_enhancement, img_t0_arrow, \
@@ -51,14 +51,25 @@ def main(video_idx):
                     img_t0, img_t1, his_info=his_info
                     )
                 t_use = toc(t)
+                out = out.cpu().numpy().astype(np.uint8)*255
 
-                filedir = f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Validation/video_{str(video_idx)}/pred/{str(i).zfill(3)}.png"
                 
-                cv2.imwrite(filedir,  out.cpu().numpy().astype(np.uint8)*255)
+                watcher = [img_t0, out, img_t0_enhancement]
+                watcher = img_square(watcher, 1)
+                h,w,c = watcher.shape
+                if h>400:
+                    k = w/h
+                    w = k * 400
+                    h = 400
+                    w = int(w)
+                    if w >1600:
+                        w = 1600
+                    watcher = cv2.resize(watcher, (w,h))
+                cv2.imshow("temp", watcher)
                 
                 print(f'\r== frame {i} ==> rate={effect}, 运动区比例={temp_rate_1:.5f}, time={t_use}ms, alg_type={alg_type}',  end="")
                 pass
-                #cv2.waitKey(100)
+                cv2.waitKey(10)
         print("task has been finished.")
 
 

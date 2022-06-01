@@ -155,6 +155,7 @@ class Inference_PostProcess():
                 # 打印箭头
                 img_t0_arrow = cv2.rectangle(img_t0_arrow, (x,y), (x+w,y+h), (0,0,255), 2)
                 img_t0_arrow = cv2.arrowedLine(img_t0_arrow, (x_center, y_center), (v_w_warp, v_h_warp), (0,0,0), 2, tipLength=0.2)
+                img_t0_enhancement = cv2.arrowedLine(img_t0_enhancement, (x_center, y_center), (v_w_warp, v_h_warp), (0,0,0), 2, tipLength=0.2)
                 
         # 保存历史信息
         his_info = {"lastout":out}

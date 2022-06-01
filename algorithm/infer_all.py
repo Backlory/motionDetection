@@ -105,7 +105,13 @@ class Inference_all():
 
     @torch.no_grad()
     def step(self, img_t0, img_t1, his_info=None):
-        
+        # 缩放
+        h,w,c = img_t0.shape
+        h_ = h // 8 * 8
+        w_ = w // 8 * 8
+        img_t0 = cv2.resize(img_t0, (w_,h_))
+        img_t1 = cv2.resize(img_t1, (w_,h_))
+
         # 对齐
         alg_type, img_t1_warp, _, _, effect,  diffOrigin, diffWarp, H_warp = self.infer_align.__call__(img_t0, img_t1)
         

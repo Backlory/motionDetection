@@ -68,7 +68,7 @@ class mywindow(QMainWindow):
         return
 
     def loadVideo(self):
-        dyn = "*.gif *.mp4 *.avi"
+        dyn = "*.gif *.mp4 *.avi *.mpg"
         path, _ = QFileDialog.getOpenFileName(self, "Load Video...", self.lastVideoPath, dyn)
         if path:
             self.lastVideoPath = path
@@ -205,6 +205,8 @@ class mywindow(QMainWindow):
         if self.cap is not None:
             self.cap.release()
         self.cap = cv2.VideoCapture(path)
+        _, self.framelast = self.cap.read()
+        h,w,c = self.framelast.shape
 
         #选取视频保存路径
         dyn = "*.mp4"
@@ -213,9 +215,10 @@ class mywindow(QMainWindow):
             return
         self.lastVideoPath_save = path
         FPS = self.cap.get(cv2.CAP_PROP_FPS)
+        frame_all = self.cap.get(cv2.CAP_PROP_FRAME_COUNT)
         outputVideo=cv2.VideoWriter(
-            path, cv2.VideoWriter.fourcc('M','P','4','V'), 
-            FPS, (512, 512), True
+            path, cv2.VideoWriter.fourcc('m','p','4','v'), 
+            FPS, (w, h), True
         )
         if not outputVideo.isOpened():
             outputVideo.release()
@@ -223,22 +226,31 @@ class mywindow(QMainWindow):
             return
 
 
-        '''
-        *(self.cap) >> *(self.frameNow)
-        int frame_idx = 0
-        int frame_total_d10 = (int)self.cap.get(cv2.CAP_PROP_FRAME_COUNT) / 10
-        std.string states_algo
-        QTime startTime = QTime.currentTime()
-
-        while (!self.frameNow.empty()) {
-            frame_idx++
-            states_algo.clear()
-            *self.frameNowProcessed = self.algo.testMat(*self.frameNow, states_algo)
-
-            assert(self.frameNowProcessed.channels() == 3)
-            outputVideo << *self.frameNowProcessed
-            *(self.cap) >> *(self.frameNow)
-        '''
+        assert(self.cap is not None)
+        idx = 0
+        while(True):
+            print(idx,"/", frame_all)
+            idx += 1
+            _, self.frameNow = self.cap.read()
+            if self.frameNow is not None:
+                #在输入区显示
+                if False:
+                    h,w,c = self.frameNow.shape
+                    qImageFrameInputDisplay = QImage(
+                        self.frameNow, w,h,QImage.Format_RGB888
+                    )
+                    qImageFrameInputDisplay = qImageFrameInputDisplay.scaled(self.ui.InputArea.size(),  
+                        Qt.IgnoreAspectRatio, 
+                        Qt.SmoothTransformation
+                    )
+                    self.ui.InputArea.setPixmap(QPixmap.fromImage(qImageFrameInputDisplay))
+                
+                #执行算法
+                self.frameNowProcessed, states_algo = self.algo(self.framelast, self.frameNow)
+                h,w,c = self.frameNowProcessed.shape
+                outputVideo.write(self.frameNowProcessed)
+            else:
+                break
         outputVideo.release()
         QMessageBox.warning(None, "About", "File saved!", QMessageBox.Ok)
         
@@ -267,7 +279,7 @@ class algorithm:
         elif self.outPutType == 5:
             output = img_t0_arrow
         else:
-            output = img_t0
+            output = (out*255).cpu().numpy().astype(np.uint8)
         output = cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
         logs = f"{alg_type}={effect:.4f}, dn={temp_rate_1:.4f}"
         return output, logs

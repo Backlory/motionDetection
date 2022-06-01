@@ -182,7 +182,7 @@ class Inference_Region_Proposal():
         h_ps = 16
         
         #t = tic()
-        _, diffWarp_thres = cv2.threshold(diffWarp, 10, 255, cv2.THRESH_BINARY)
+        _, diffWarp_thres = cv2.threshold(diffWarp, 3, 255, cv2.THRESH_BINARY)
         diffWarp_thres = cv2.medianBlur(diffWarp_thres, 3)
         #toc(t, "midbluer+", 1, mute=False);t = tic()
         
