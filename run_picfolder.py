@@ -15,12 +15,15 @@ from utils.timers import tic, toc
 
 
 from algorithm.infer_all import Inference_all
+from algorithm.infer_Homo_cancel import Inference_Homo_cancel
+from algorithm.infer_Region_Proposal_cancel import Inference_Region_Proposal_cancel
 
 #======================================================================
 def main(video_idx):
     print("model...")
     
     infer_all = Inference_all()
+    infer_all.infer_align = Inference_Homo_cancel()
 
     print("Processing...")
     if True:
@@ -34,12 +37,15 @@ def main(video_idx):
         video_dir_base = r"E:/dataset/dataset-fg-det/DAVIS/480p/paragliding/"
         video_dir_base = r"E:/dataset/dataset-fg-det/DAVIS/480p/skate-park/"
         video_dir_base = r"E:\dataset\dataset-fg-det\PESMOD\Pexels-Elliot-road\images\\"
+        video_dir_base = r"E:\dataset\dataset-fg-det\PESMOD\Pexels-Grisha-snow\images\\"
+
         
         len_all = len(os.listdir(video_dir_base))
         len_all = len_all - step_frame
                 
         his_info = None
         temp_rate = []
+        cv2.namedWindow("temp", cv2.WINDOW_FREERATIO)
         with torch.no_grad():
             for i in range(len_all):
                 #i = i % (len_all-step_frame*2)
@@ -60,14 +66,13 @@ def main(video_idx):
 
                 t=tic()
                 diffOrigin, moving_mask, out, img_t0_enhancement, img_t0_arrow, \
-                    effect, alg_type, temp_rate_1, his_info = infer_all.step(
+                    effect, alg_type, temp_rate_1, his_info, flo_out = infer_all.step(
                     img_t0, img_t1, his_info=his_info
                     )
                 t_use = toc(t)
-                out = out.cpu().numpy().astype(np.uint8)*255
 
-                watcher = [img_t0, out, img_t0_enhancement]
-                watcher = img_square(watcher, 1)
+                watcher = [img_t0, moving_mask, flo_out, out, img_t0_enhancement]
+                watcher = img_square(watcher, 2)
                 h,w,c = watcher.shape
                 if h>400:
                     k = w/h
