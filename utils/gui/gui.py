@@ -263,9 +263,10 @@ class algorithm:
         self.outPutType = 0
 
     def __call__(self, img_t0, img_t1):
-        
+        img_t0 = cv2.resize(img_t0, (512,512))
+        img_t1 = cv2.resize(img_t1, (512,512))
         diffOrigin, moving_mask, out, img_t0_enhancement, img_t0_arrow, \
-            effect, alg_type, temp_rate_1, self.his_info = self.infer.step(
+            effect, alg_type, temp_rate_1, self.his_info, flo_out = self.infer.step(
             img_t0, img_t1, his_info=self.his_info
             )
         if self.outPutType == 1:
@@ -279,7 +280,9 @@ class algorithm:
         elif self.outPutType == 5:
             output = img_t0_arrow
         else:
-            output = (out*255).cpu().numpy().astype(np.uint8)
+            #output = (out*255).cpu().numpy().astype(np.uint8)
+            output = out.astype(np.uint8) * 255
+            
         output = cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
         logs = f"{alg_type}={effect:.4f}, dn={temp_rate_1:.4f}"
         return output, logs

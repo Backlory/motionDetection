@@ -26,7 +26,7 @@ class Inference_OpticalFlow():
         self.args = args
         self.smallobj_size_thres = smallobj_size_thres
         
-        self.gridLength = 32     #边长
+        self.gridLength = 16     #边长  #【】【】【】【】【】
         self.iters = 10
         
         self.padder = InputPadder([1,3,640,640])

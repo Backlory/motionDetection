@@ -56,9 +56,12 @@ class Inference_all():
             path = r"E:\dataset\dataset-fg-det\UAC_IN_CITY\video_all_1-skip.mp4"
         elif dataset == 'j':
             path = r"E:\dataset\dataset-fg-det\Janus_UAV_Dataset\train_video\video_all.mp4"
-        else:
+        elif dataset == "k":
             path = r'E:\dataset\dataset-fg-det\Kaggle-Drone-Videos\video_all.mp4'
-
+        elif dataset == "w":
+            path = r'E:\dataset\dataset-fg-det\uavinwar\all_x264.mp4'
+        else:
+            path = dataset
         self.__call__(path, fps_target)
         return
         
@@ -71,8 +74,9 @@ class Inference_all():
             pass
         #
         cap = cv2.VideoCapture(path)
-        tempVideoProcesser = Inference_VideoProcess(cap=cap,fps_target=fps_target)
+        tempVideoProcesser = Inference_VideoProcess(cap=cap,fps_target=fps_target, skip_frame=4)
         print(f"run testing wiht fps_target = {tempVideoProcesser.fps_now}")
+        cv2.namedWindow("out", cv2.WINDOW_FREERATIO)
         
         idx = 0
         his_info = None
@@ -87,15 +91,18 @@ class Inference_all():
 
             # 处理一帧
             diffOrigin, moving_mask, out, img_t0_enhancement, img_t0_arrow, \
-                effect, alg_type, temp_rate_1, his_info = self.step(
+                effect, alg_type, temp_rate_1, his_info, flo_out = self.step(
                 img_t0, img_t1, his_info=his_info
                 )
             
             t_use = toc(t)
             print(f'\r== frame {idx} ==> rate={effect}, PR_rate={temp_rate_1:.5f}, time={t_use}ms, alg_type={alg_type}',  end="")
             cv2.imwrite(f"{savedir}/{idx}.png", img_t0_enhancement)
-            cv2.imshow("origin", img_t0)
-            cv2.imshow("moving detecting", img_t0_enhancement)
+            #cv2.imshow("origin", img_t0)
+            #cv2.imshow("moving detecting", img_t0_enhancement)
+            temp = img_square([img_t0, moving_mask, flo_out, out, img_t0_enhancement], 2)
+            temp = cv2.resize(temp, (600,400))
+            cv2.imshow("out", temp)
             cv2.waitKey(1)
             pass
             
@@ -121,18 +128,20 @@ class Inference_all():
         
         #光流提取
         flo_ten, fmap1_ten = self.infer_optical.__call__(img_t0, img_t1_warp, moving_mask)
+        flo_out = flo_ten[0].detach().cpu().numpy().transpose([1,2,0])
+        flo_out = flow_to_image(flo_out)
         
         # 运动检测
         out = self.infer_mdhead.__call__(flo_ten, fmap1_ten)
         
         # 后处理
-        img_t0_enhancement, img_t0_arrow, his_info = self.infer_postproc.__call__(img_t0, out, H_warp, flo_ten, his_info)
+        img_t0_enhancement, img_t0_arrow, out, his_info = self.infer_postproc.__call__(img_t0, out, H_warp, flo_ten, his_info)
         
         # 输出
         diffOrigin = cv2.cvtColor(diffOrigin, cv2.COLOR_GRAY2BGR)
         moving_mask = cv2.cvtColor(moving_mask, cv2.COLOR_GRAY2BGR)
         
         return diffOrigin, moving_mask, out, img_t0_enhancement, img_t0_arrow, \
-                effect, alg_type, temp_rate_1, his_info
+                effect, alg_type, temp_rate_1, his_info, flo_out
     
     

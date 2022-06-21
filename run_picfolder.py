@@ -33,6 +33,8 @@ def main(video_idx):
         video_dir_base = r"E:/dataset/dataset-fg-det/DAVIS/480p/mallard-fly/"
         video_dir_base = r"E:/dataset/dataset-fg-det/DAVIS/480p/paragliding/"
         video_dir_base = r"E:/dataset/dataset-fg-det/DAVIS/480p/skate-park/"
+        video_dir_base = r"E:\dataset\dataset-fg-det\PESMOD\Pexels-Elliot-road\images\\"
+        
         len_all = len(os.listdir(video_dir_base))
         len_all = len_all - step_frame
                 
@@ -41,10 +43,21 @@ def main(video_idx):
         with torch.no_grad():
             for i in range(len_all):
                 #i = i % (len_all-step_frame*2)
-                img_t0 = cv2.imread(f"{video_dir_base}{str(i).zfill(5)}.jpg")
-                img_t1 = cv2.imread(f"{video_dir_base}{str(i+step_frame).zfill(5)}.jpg")
+                if "DAVIS" in video_dir_base:
+                    img_name = f"{str(i).zfill(5)}.jpg"
+                    img_name2 = f"{str(i+step_frame).zfill(5)}.jpg"
+                elif "PESMOD" in video_dir_base:
+                    img_name = f"frame{str(i+1).zfill(4)}.jpg"
+                    img_name2 = f"frame{str(i+step_frame+1).zfill(4)}.jpg"
 
+                img_t0 = cv2.imread(f"{video_dir_base}{img_name}")
+                img_t1 = cv2.imread(f"{video_dir_base}{img_name2}")
                 
+                if img_t0.size > 1080*720:
+                    img_t0 = cv2.resize(img_t0, (1080,720))
+                    img_t1 = cv2.resize(img_t1, (1080,720))
+
+
                 t=tic()
                 diffOrigin, moving_mask, out, img_t0_enhancement, img_t0_arrow, \
                     effect, alg_type, temp_rate_1, his_info = infer_all.step(
@@ -53,7 +66,6 @@ def main(video_idx):
                 t_use = toc(t)
                 out = out.cpu().numpy().astype(np.uint8)*255
 
-                
                 watcher = [img_t0, out, img_t0_enhancement]
                 watcher = img_square(watcher, 1)
                 h,w,c = watcher.shape

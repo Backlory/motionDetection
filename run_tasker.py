@@ -57,7 +57,7 @@ if __name__ == "__main__":
             Infer.run_test(fps)
         exit(0)
 
-    if True:
+    if False:
         from algorithm.infer_Homo_switcher import Inference_Homo_switcher
         log('!!!!!!!!!!!!!!!!!!!!!!!单应性测试，switch算法!!!!!!!!!!!!!!!!!!!!\n')
         args = get_conf('infer_Homo')
@@ -134,7 +134,8 @@ if __name__ == "__main__":
         log('!!!!!!!!!!!!!!!!!!!!!!!全模型!!!!!!!!!!!!!!!!!!!!\n')
         args = get_conf('Inference_all')
         Tasker = Inference_all(args=args)
-        Tasker.run_test(dataset = 'j')
-        Tasker.run_test(dataset = 'u')
-        Tasker.run_test(dataset = 'k')
+        Tasker.run_test(dataset = 'w')
+        #Tasker.run_test(dataset = 'j')
+        #Tasker.run_test(dataset = 'u')
+        #Tasker.run_test(dataset = 'k')
         exit(0)

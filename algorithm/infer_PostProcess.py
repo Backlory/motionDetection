@@ -113,7 +113,6 @@ class Inference_PostProcess():
 
         # 历史信息解析
         if his_info is not None:
-            his_info["lastout"]
             out_addhis = cv2.bitwise_or(out, his_info["lastout"])
         else:
             out_addhis = out
@@ -159,7 +158,7 @@ class Inference_PostProcess():
                 
         # 保存历史信息
         his_info = {"lastout":out}
-        return img_t0_enhancement, img_t0_arrow, his_info
+        return img_t0_enhancement, img_t0_arrow, out_addhis, his_info
 
     
     

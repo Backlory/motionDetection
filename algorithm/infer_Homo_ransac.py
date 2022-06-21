@@ -299,6 +299,8 @@ class Inference_Homo_RANSAC():
         except:
             print("error!")
             H_warp = np.array([1,0,0,0,1,0,0,0,1], dtype=np.float32()).reshape(3,3)
+        if H_warp is None:
+            H_warp = np.array([1,0,0,0,1,0,0,0,1], dtype=np.float32()).reshape(3,3)
         return H_warp
 
     def time_test(self):
