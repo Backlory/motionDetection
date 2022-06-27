@@ -32,7 +32,7 @@ class Inference_Homo_RSHomoNet():
             self.model_cnn = Homo_cnn()
             self.model_fc = Homo_fc()
             path = self.args['continueTaskExpPath'] + '/' + self.args['continueWeightsFile_weights']
-            from utils.pytorchmodel import updata_adaptive
+            from utils.toCPP import updata_adaptive
             temp_states = {}
             for k,v in torch.load(path)['state_dict'].items():
                 k_ = k.replace("cnn.",'cnn')

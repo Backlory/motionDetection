@@ -138,19 +138,25 @@ class Inference_PostProcess():
                 x,y,w,h = stats[i,0:4]
                 x_center = x + w // 2
                 y_center = y + h // 2
+
+                #还原光流
                 flo_point = flo_ten[0,:, y_center, x_center]
                 v_w, v_h  = flo_point
                 v_w, v_h = v_w.item(), v_h.item()
-                k = (v_w**2 + v_h**2) ** 0.5
-                if 0 < k < 10:
-                    v_h *= 10/k 
-                    v_w *= 10/k 
-                v_w, v_h = v_w + x_center, v_h + y_center
-
-                #还原光流
-                v_w_warp, v_h_warp, _ = np.matmul(H_warp_inv, np.array([[v_w], [v_h], [1]]))
+                v_w_warp, v_h_warp, _ = np.matmul(
+                    H_warp_inv, np.array([[v_w + x_center], [v_h + y_center], [1]])
+                    )
                 v_w_warp, v_h_warp = int(v_w_warp), int(v_h_warp)
                 
+                # 缩放光流
+                dx = v_w_warp - x_center
+                dy = v_h_warp - y_center
+                k = ((dx)**2 + (dy)**2) ** 0.5
+                if 0 < k < 20:
+                    dx *= 20/k 
+                    dy *= 20/k 
+                v_w_warp, v_h_warp = int(x_center + dx), int(y_center + dy)
+
                 # 打印箭头
                 img_t0_arrow = cv2.rectangle(img_t0_arrow, (x,y), (x+w,y+h), (0,0,255), 2)
                 img_t0_arrow = cv2.arrowedLine(img_t0_arrow, (x_center, y_center), (v_w_warp, v_h_warp), (0,0,0), 2, tipLength=0.2)

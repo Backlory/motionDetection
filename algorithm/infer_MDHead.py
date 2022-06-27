@@ -11,6 +11,7 @@ from utils.mics import colorstr
 from utils.timers import tic, toc
 from utils.img_display import img_square
 from utils.flow_viz import flow_to_image
+from utils.toCPP import saveTensorToPt
 
 from model.MDHead import MDHead
 
@@ -42,7 +43,13 @@ class Inference_MDHead():
         print(colorstr('load weights for MDHead ...', 'yellow'))
         temp = torch.load(args["MDHead_weights"])
         self.model.load_state_dict(temp["state_dict"])
-
+        
+        # 参数导出
+        for idx, item in enumerate(self.model.state_dict()):
+            param_name = item[5:]
+            param_value = self.model.state_dict()[item]
+            saveTensorToPt(f"temp/mdhead-weights/{param_name}.pkl", param_value)
+        print("all exported.")
         
 
 

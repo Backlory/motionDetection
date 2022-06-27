@@ -74,7 +74,7 @@ class Inference_all():
             pass
         #
         cap = cv2.VideoCapture(path)
-        tempVideoProcesser = Inference_VideoProcess(cap=cap,fps_target=fps_target, skip_frame=4)
+        tempVideoProcesser = Inference_VideoProcess(cap=cap,fps_target=fps_target, skip_frame=0)
         print(f"run testing wiht fps_target = {tempVideoProcesser.fps_now}")
         cv2.namedWindow("out", cv2.WINDOW_FREERATIO)
         

@@ -125,18 +125,18 @@ class MaskCorrBlock:
         r = self.radius
         coords = coords.permute(0, 2, 3, 1)
         batch, h1, w1, _ = coords.shape
-
+        dx = torch.linspace(-r, r, 2*r+1, device=coords.device) #一个网格，记录了一个方形区域内每个点相对中心的偏移量
+        dy = torch.linspace(-r, r, 2*r+1, device=coords.device)
+        delta = torch.stack(torch.meshgrid(dy, dx), axis=-1)
+        delta_lvl = delta.view(1, 2*r+1, 2*r+1, 2)
         out_pyramid = []
         for i in range(self.num_levels):    #每层都要取
-            corr = self.corr_pyramid[i]     #n个点，单通道，与其余64*64个点的corr值
-            dx = torch.linspace(-r, r, 2*r+1, device=coords.device) #一个网格，记录了一个方形区域内每个点相对中心的偏移量
-            dy = torch.linspace(-r, r, 2*r+1, device=coords.device)
-            delta = torch.stack(torch.meshgrid(dy, dx), axis=-1)
-            
             centroid_lvl = coords.reshape(batch*h1*w1, 1, 1, 2) / 2**i  #索引值随下采样倍数而降低
-            delta_lvl = delta.view(1, 2*r+1, 2*r+1, 2)
             coords_lvl = centroid_lvl + delta_lvl   # 广播运算，[4096, 1, 1, 2]的索引区，加[1, 9, 9, 2]代表每个点都要取9*9=81个子向量
+            
+            corr = self.corr_pyramid[i]     #n个点，单通道，与其余64*64个点的corr值
             corr = bilinear_sampler(corr, coords_lvl)   #根据coords_lvl，对corr矩阵做双线性采样，得到的采样结果替换corr
+            
             corr = corr.view(batch, h1, w1, -1)
             out_pyramid.append(corr)
 

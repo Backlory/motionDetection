@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import io
 
 def updata_adaptive(model, params_dict_new):
     '''
@@ -25,3 +26,12 @@ def traced_model(model, dirname="temp/libtorch_script_model_Homo_cpu.pkl'"):
     script_model = torch.jit.script(model)
     script_model.save(dirname)
     return script_model
+def saveTensorToPt(filename, my_tensor):
+    '''
+    save_tensor("123.pt", tensor)
+    '''
+    my_tensor = my_tensor.detach().cpu().float()
+    f = io.BytesIO()
+    torch.save(my_tensor, f, _use_new_zipfile_serialization=True)
+    with open(filename, "wb") as out_f:
+        out_f.write(f.getbuffer())

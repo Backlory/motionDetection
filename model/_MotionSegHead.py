@@ -59,7 +59,7 @@ class MothinSegHead(nn.Module):
 from Homo import Homo_cnn
 model_cnn = Homo_cnn()
 path = r"E:\codes\220311-motionDetection\weights\model_Train_Homo_and_save_bs32_96.pkl"
-from utils.pytorchmodel import updata_adaptive
+from utils.toCPP import updata_adaptive
 temp_states = torch.load(path)['state_dict']
 model_cnn = updata_adaptive(model_cnn, temp_states)
 

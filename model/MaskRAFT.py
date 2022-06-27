@@ -9,6 +9,7 @@ from model.thirdparty_RAFT.core.corr import MaskCorrBlock
 from model.thirdparty_RAFT.core.utils.utils import upflow8
 from model.thirdparty_RAFT.core.raft import RAFT
 from utils.timers import tic, toc
+from utils.toCPP import saveTensorToPt
 
 try:
     autocast = torch.cuda.amp.autocast
@@ -49,8 +50,15 @@ class Mask_RAFT(RAFT):
         
         status = torch.load(args.model)
         status = {k[7:]:v for k,v in status.items()}
-        self.load_state_dict(status)
+        self.load_state_dict(status, strict = False)
         print("weights have been loaded for MASK-RAFT...")
+        
+        torch.save(self.state_dict(), "1.pkl")
+        for idx, item in enumerate(self.state_dict()):
+            param_name = item
+            param_value = self.state_dict()[item]
+            saveTensorToPt(f"temp/sintel-weights/{param_name}.pkl", param_value)
+        print("all exported.")
 
         #self.Maskfnet = MaskBasicEncoder(output_dim=256, norm_fn='instance', dropout=args.dropout)
         #self.Maskfnet.load_state_dict(self.fnet.state_dict())
@@ -63,6 +71,12 @@ class Mask_RAFT(RAFT):
 
     def forward(self, image1, image2, Masks=[None, None], iters=12, flow_init=None, upsample=True, test_mode=False):
         """ Estimate optical flow between pair of frames """
+        import cv2
+        #image1 = cv2.imread(r"E:\codes\220318-myalgorithm\myalgorithm\res\000.png")#*【】【】【】
+        #image2 = cv2.imread(r"E:\codes\220318-myalgorithm\myalgorithm\res\001.png")#*【】【】【】
+        #image1 = torch.from_numpy(image1).permute(2, 0, 1).float()[None].to("cuda:0")#*【】【】【】
+        #image2 = torch.from_numpy(image2).permute(2, 0, 1).float()[None].to("cuda:0")#*【】【】【】
+        
         assert(len(image1) == 1)
         assert(len(image2) == 1)
         #tp = tic()
@@ -86,6 +100,8 @@ class Mask_RAFT(RAFT):
         Mask_small, Mask_small_2 = Masks
         Mask_small = Mask_small / 255.0
         Mask_small_2 = Mask_small_2 / 255.0
+        #Mask_small = torch.ones_like(Mask_small) #*【】【】【】
+        #Mask_small_2 = torch.ones_like(Mask_small_2) #*【】【】【】
         Mask_big = F.interpolate(Mask_small, fmap1.shape[2:4], mode="nearest")
         Mask_big_2 = F.interpolate(Mask_small_2, fmap1.shape[2:4], mode="nearest")
         Masks = [Mask_big, Mask_big_2]
@@ -94,13 +110,11 @@ class Mask_RAFT(RAFT):
         w_num = w1 // gL
         fmap1 = fmap1 * Mask_big
         fmap2 = fmap2 * Mask_big_2
-        
         # 计算corr
         corr_fn = MaskCorrBlock(fmap1, fmap2, 
                                 radius=self.args.corr_radius, 
                                 Masks=Masks,
                                 gridLength=gL )
-        
         # run the context network
         with autocast(enabled=self.args.mixed_precision):
             cnet = self.cnet(image1)    #上下文网络。只对patch用
@@ -108,9 +122,9 @@ class Mask_RAFT(RAFT):
             net, inp = torch.split(cnet, [hdim, cdim], dim=1)
             net = torch.tanh(net)   #正面进，初始状态   [1, 128, 64, 64])
             inp = torch.relu(inp)   #侧面进
-
         # 光流初始化
         coords0, coords1 = self.initialize_flow(image1) #某点的原始坐标， 某点运动后的坐标，尺寸为[n,2,h//8,w//8]
+
         if flow_init is not None:
             coords1 = coords1 + flow_init
         
@@ -121,14 +135,10 @@ class Mask_RAFT(RAFT):
         for itr in range(iters):
             
             corr = corr_fn.__call_mask__(coords1) # [20, 20, 1, 324, 4, 4]
-            
             #coords1 = coords1.reshape([2, h_num, gL, w_num, gL]).permute([1,3,0,2,4])
             #corr = corr_fn(coords1) # [20, 20, 1, 324, 4, 4]
             #coords1 = coords1.permute([2,0,3,1,4]).contiguous().view(1,2,h1,w1)
             #corr = corr.permute([2,3,0,4,1,5]).contiguous().view(1,324,h1,w1)
-            
-            
-
             flow = coords1 - coords0
             with autocast(enabled=self.args.mixed_precision):
                 net, up_mask, delta_flow = self.update_block(net, inp, corr, flow)
