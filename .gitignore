@@ -26,3 +26,6 @@ log.txt
 *.log_file
 log_valid_janusUAV_FPS10.txt
 log_valid_janusUAV.txt
+log_*
+*.xls
+*.xlsx
