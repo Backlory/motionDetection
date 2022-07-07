@@ -1,3 +1,13 @@
+'''
+Author: Backlory
+github: https://github.com/Backlory
+Date: 2022-06-03 09:53:57
+LastEditors: backlory's desktop dbdx_liyaning@126.com
+LastEditTime: 2022-07-07 21:13:01
+Description: 
+
+Copyright (c) 2022 by Backlory, All Rights Reserved. 
+'''
 import numpy as np
 import cv2
 import torch 
@@ -62,8 +72,8 @@ def main(video_idx, expname="pred", skip_frame=1):
                     )
                 t_use = toc(t)
                 temp = img_square([img_t0, img_t0_arrow], 1)
-                cv2.imshow("1", temp)
-                cv2.waitKey(0)
+                #cv2.imshow("1", temp)
+                #cv2.waitKey(0)
                 filedir = f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Validation/video_{str(video_idx)}/{expname}/{str(i).zfill(3)}.png"
                 
                 cv2.imwrite(filedir,  out.astype(np.uint8)*255)
@@ -76,13 +86,13 @@ def main(video_idx, expname="pred", skip_frame=1):
 
 if __name__ == "__main__":
     for i in range(1, 16):
-        #main(i, "pred_ori", 1) # 对齐+候选+检测
+        main(i, "pred_ori", 1) # 对齐+候选+检测
         #main(i, "pred_norp", 1)    #对齐+检测
         #main(i, "pred_nohomo", 1)  # 候选+检测
         #main(i, "pred_nohomo_norp", 1) #检测
-        main(i, "pred_ori_FPS10", 3) # 对齐+候选+检测
-        main(i, "pred_norp_FPS10", 3)    #对齐+检测
-        main(i, "pred_nohomo_FPS10", 3)  # 候选+检测
-        main(i, "pred_nohomo_norp_FPS10", 3) #检测
+        #main(i, "pred_ori_FPS10", 3) # 对齐+候选+检测
+        #main(i, "pred_norp_FPS10", 3)    #对齐+检测
+        #main(i, "pred_nohomo_FPS10", 3)  # 候选+检测
+        #main(i, "pred_nohomo_norp_FPS10", 3) #检测
         
     

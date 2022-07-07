@@ -1,3 +1,13 @@
+'''
+Author: Backlory
+github: https://github.com/Backlory
+Date: 2022-05-29 11:26:51
+LastEditors: backlory's desktop dbdx_liyaning@126.com
+LastEditTime: 2022-07-07 22:41:45
+Description: 
+
+Copyright (c) 2022 by Backlory, All Rights Reserved. 
+'''
 import numpy as np
 import cv2
 import torch 
@@ -26,7 +36,7 @@ def main(video_idx, expname="pred", cm=None):
             for i in range(len_all):
                 gt = cv2.imread(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Validation/video_{str(video_idx)}/gt_mov/{str(i).zfill(3)}.png", cv2.IMREAD_GRAYSCALE) 
                 _, gt = cv2.threshold(gt, 127, 255, cv2.THRESH_BINARY_INV)
-                
+                #pred = cv2.imread(f"E:/codes/220630-SmallObjMotionSeg/temp/janusUAVtest/Validation/out_video_{str(video_idx)}/Algorithm_MaskRAFT\{str(i).zfill(3)}.png", cv2.IMREAD_GRAYSCALE)
                 pred = cv2.imread(f"E:/dataset/dataset-fg-det/Janus_UAV_Dataset/Validation/video_{str(video_idx)}/{expname}/{str(i).zfill(3)}.png", cv2.IMREAD_GRAYSCALE) 
                 evaluator.add_batch_np(pred, gt)
                 pass
@@ -52,9 +62,6 @@ if __name__ == "__main__":
         #cm2 = main(i,"pred_norp", cm2)
         #cm3 = main(i,"pred_nohomo", cm3)
         #cm4 = main(i,"pred_nohomo_norp", cm4)
-        cm1 = main(i,"pred_ori_FPS10", cm1)
-        cm2 = main(i,"pred_norp_FPS10", cm2)
-        cm3 = main(i,"pred_nohomo_FPS10", cm3)
-        cm4 = main(i,"pred_nohomo_norp_FPS10", cm4)
+        cm1 = main(i,"pred_ori", cm1)
         pass
-    
+    print(cm1)
