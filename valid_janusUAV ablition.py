@@ -3,7 +3,7 @@ Author: Backlory
 github: https://github.com/Backlory
 Date: 2022-06-03 09:53:57
 LastEditors: backlory's desktop dbdx_liyaning@126.com
-LastEditTime: 2022-07-07 21:13:01
+LastEditTime: 2022-07-07 22:59:51
 Description: 
 
 Copyright (c) 2022 by Backlory, All Rights Reserved. 
@@ -68,7 +68,7 @@ def main(video_idx, expname="pred", skip_frame=1):
                 t=tic()
                 diffOrigin, moving_mask, out, img_t0_enhancement, img_t0_arrow, \
                     effect, alg_type, temp_rate_1, his_info, flo_out = infer_all.step(
-                    img_t0, img_t1, his_info=his_info
+                    img_t0, img_t1, his_info=None
                     )
                 t_use = toc(t)
                 temp = img_square([img_t0, img_t0_arrow], 1)
@@ -86,7 +86,7 @@ def main(video_idx, expname="pred", skip_frame=1):
 
 if __name__ == "__main__":
     for i in range(1, 16):
-        main(i, "pred_ori", 1) # 对齐+候选+检测
+        main(i, "pred_ori_nohistory", 1) # 对齐+候选+检测
         #main(i, "pred_norp", 1)    #对齐+检测
         #main(i, "pred_nohomo", 1)  # 候选+检测
         #main(i, "pred_nohomo_norp", 1) #检测

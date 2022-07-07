@@ -3,7 +3,7 @@ Author: Backlory
 github: https://github.com/Backlory
 Date: 2022-05-29 11:26:51
 LastEditors: backlory's desktop dbdx_liyaning@126.com
-LastEditTime: 2022-07-07 22:41:45
+LastEditTime: 2022-07-07 23:19:51
 Description: 
 
 Copyright (c) 2022 by Backlory, All Rights Reserved. 
@@ -46,15 +46,15 @@ def main(video_idx, expname="pred", cm=None):
             print(evaluator.confusion_matrix)
             print(f"mIoU={mIoU:.4f}, FWIoU={FWIoU:.4f}, Acc={Acc:.4f}, mAcc={mAcc:.4f}")
             print(f"mPre={mPre:.4f}, mRecall={mRecall:.4f}, mF1={mF1:.4f}, AuC={AuC:.4f}")
-            if video_idx == 15:
-                savedStdout = sys.stdout
-                with open("log_valid_janusUAV_FPS10.txt", "a+") as f:
-                    sys.stdout = f
-                    print(f"{expname}, {mIoU:.4f}, {FWIoU:.4f}, {Acc:.4f}, {mAcc:.4f}, {mPre:.4f}, {mRecall:.4f}, {mF1:.4f}, {AuC:.4f}")
-                sys.stdout = savedStdout
+            #if video_idx == 15:
+            savedStdout = sys.stdout
+            with open(f"log_valid_janusUAV_{expname}.txt", "a+") as f:
+                sys.stdout = f
+                print(f"{expname}, {mIoU:.4f}, {FWIoU:.4f}, {Acc:.4f}, {mAcc:.4f}, {mPre:.4f}, {mRecall:.4f}, {mF1:.4f}, {AuC:.4f}")
+            sys.stdout = savedStdout
         print("task has been finished.")
         return evaluator.confusion_matrix
-
+"name	mIoU	FWIoU	Acc	mAcc	mPre	mRecall	mF1	AuC"
 if __name__ == "__main__":
     cm1, cm2, cm3, cm4 = None,None,None,None
     for i in range(1, 16):
@@ -62,6 +62,6 @@ if __name__ == "__main__":
         #cm2 = main(i,"pred_norp", cm2)
         #cm3 = main(i,"pred_nohomo", cm3)
         #cm4 = main(i,"pred_nohomo_norp", cm4)
-        cm1 = main(i,"pred_ori", cm1)
+        cm1 = main(i,"pred_ori_nohistory", cm1)
         pass
     print(cm1)
